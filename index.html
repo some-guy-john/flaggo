@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flaggo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
+  <div class="page-shell">
+    <header class="hero">
+      <h1 id="page-title">Guess the country from its flag.</h1>
+      <div class="mode-cluster">
+        <div class="mode-switch" role="group" aria-label="Game type">
+          <button id="flag-game-button" class="mode-button" type="button">Flag</button>
+          <button id="globle-game-button" class="mode-button" type="button">Globle</button>
+        </div>
+        <div class="mode-switch sub-switch" role="group" aria-label="Play mode">
+          <button id="daily-mode-button" class="mode-button" type="button">Daily</button>
+          <button id="unlimited-mode-button" class="mode-button" type="button">Unlimited</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="game-main">
+      <section id="game-center" class="game-center" aria-labelledby="flag-title">
+        <div id="globle-stage" class="globle-stage is-hidden">
+          <div class="flag-frame globe-frame">
+            <div id="globle-panel" class="globle-panel is-hidden" aria-hidden="true">
+              <canvas id="globe-canvas" class="globe-canvas" aria-label="Draggable world globe"></canvas>
+              <div class="globle-zoom" role="group" aria-label="Globe zoom">
+                <button id="globe-zoom-in" class="zoom-button" type="button" aria-label="Zoom in">+</button>
+                <button id="globe-zoom-out" class="zoom-button" type="button" aria-label="Zoom out">&minus;</button>
+              </div>
+              <div class="globle-legend">
+                <span class="legend-chip cold">Far</span>
+                <span class="legend-chip warm">Closer</span>
+                <span class="legend-chip hot">Closest</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="flag-stage" class="flag-stage">
+          <div class="flag-frame">
+            <img id="flag-image" class="flag-image" alt="Mystery country flag">
+            <div id="flag-mask" class="flag-mask" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div id="game-sidebar" class="globle-sidebar">
+          <div class="flag-meta">
+            <h2 id="flag-title">Six guesses. Six tiles.</h2>
+            <p id="status-message" class="status-message">Each valid guess reveals one tile. Find it before the whole flag opens.</p>
+          </div>
+
+          <form id="guess-form" class="guess-form flag-guess-form" autocomplete="off">
+            <label class="sr-only" for="country-input">Country name</label>
+            <div class="input-wrap">
+              <input
+                id="country-input"
+                name="country"
+                type="text"
+                placeholder="Start typing: United..."
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-controls="suggestions"
+                aria-expanded="false"
+              >
+              <button id="guess-button" class="primary-button" type="submit">Guess</button>
+            </div>
+            <ul id="suggestions" class="suggestions" role="listbox" aria-label="Country suggestions"></ul>
+          </form>
+
+          <div class="button-row center">
+            <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
+            <button id="new-game-button" class="ghost-button" type="button">New flag</button>
+          </div>
+
+          <div class="board-divider"></div>
+
+          <div class="section-heading board-heading">
+            <h3 id="guesses-title">Guess board</h3>
+            <span id="history-count" class="history-count">6 slots</span>
+          </div>
+          <ul id="guess-list" class="guess-list"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="countries.js"></script>
+  <script src="vendor/d3.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
