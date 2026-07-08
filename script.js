@@ -1129,6 +1129,11 @@ elements.countryInput.addEventListener("keydown", (event) => {
     selectSuggestion(state.filteredSuggestions[state.highlightedIndex]);
   }
 
+  if (event.key === "Tab" && state.highlightedIndex >= 0 && !event.shiftKey) {
+    event.preventDefault();
+    selectSuggestion(state.filteredSuggestions[state.highlightedIndex]);
+  }
+
   if (event.key === "Escape") {
     clearSuggestions();
   }

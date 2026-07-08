@@ -76,16 +76,15 @@
             <ul id="suggestions" class="suggestions" role="listbox" aria-label="Country suggestions"></ul>
           </form>
 
-          <div class="button-row center">
-            <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
-            <button id="new-game-button" class="ghost-button" type="button">New flag</button>
-          </div>
-
-          <div class="board-divider"></div>
-
           <div class="section-heading board-heading">
             <h3 id="guesses-title">Guess board</h3>
-            <span id="history-count" class="history-count">6 slots</span>
+            <div class="board-tools">
+              <span id="history-count" class="history-count">6 slots</span>
+              <div class="button-row board-actions">
+                <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
+                <button id="new-game-button" class="ghost-button" type="button">New flag</button>
+              </div>
+            </div>
           </div>
           <ul id="guess-list" class="guess-list"></ul>
         </div>

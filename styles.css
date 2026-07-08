@@ -177,6 +177,7 @@ input {
   flex-direction: column;
   gap: 0.75rem;
   min-width: 0;
+  min-height: 0;
 }
 
 .flag-frame {
@@ -419,6 +420,13 @@ input {
   justify-content: center;
 }
 
+.board-actions {
+  width: auto;
+  margin: 0;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
 .ghost-button,
 .primary-button {
   border: 0;
@@ -433,6 +441,13 @@ input {
   background: rgba(20, 33, 61, 0.06);
   color: var(--text);
   flex: 1;
+}
+
+.board-actions .ghost-button {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.76rem;
+  border-radius: 999px;
 }
 
 .warning-button {
@@ -528,20 +543,21 @@ input {
   background: rgba(217, 107, 43, 0.12);
 }
 
-.board-divider {
-  width: 100%;
-  border-top: 0.5px solid var(--line);
-  margin: 0.4rem 0 0.45rem;
-}
-
 .board-heading {
   width: 100%;
-  margin-bottom: 0.4rem;
+  margin-top: 0.15rem;
+  margin-bottom: 0.25rem;
 }
 
 .board-heading h3 {
   font-size: 0.85rem;
   margin: 0;
+}
+
+.board-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .history-count {
@@ -556,14 +572,17 @@ input {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  gap: 0.3rem;
   width: 100%;
+  min-height: 0;
+  height: clamp(220px, 31vh, 252px);
 }
 
 .guess-list.globle-board {
-  max-height: 240px;
+  grid-template-rows: none;
+  height: clamp(220px, 31vh, 252px);
   overflow-y: auto;
 }
 
@@ -572,11 +591,12 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: 0.5rem 0.7rem;
+  min-height: 0;
+  padding: 0.42rem 0.65rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.62);
   border: 0.5px solid var(--line);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .guess-item.empty {
@@ -614,12 +634,12 @@ input {
 
 .guess-label {
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .guess-result {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .sr-only {
@@ -714,11 +734,26 @@ input {
     flex-direction: column;
   }
 
+  .board-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .button-row:not(.center) {
     width: 100%;
   }
 
   .button-row .ghost-button {
     flex: 1;
+  }
+
+  .board-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .guess-list,
+  .guess-list.globle-board {
+    height: 216px;
   }
 }
