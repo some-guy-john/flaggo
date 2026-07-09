@@ -506,6 +506,22 @@ function clearSuggestions() {
   renderSuggestions();
 }
 
+function stepSuggestionHighlight(direction) {
+  if (!state.filteredSuggestions.length) {
+    return;
+  }
+
+  if (state.highlightedIndex < 0) {
+    state.highlightedIndex = direction > 0 ? 0 : state.filteredSuggestions.length - 1;
+  } else {
+    state.highlightedIndex =
+      (state.highlightedIndex + direction + state.filteredSuggestions.length) %
+      state.filteredSuggestions.length;
+  }
+
+  renderSuggestions();
+}
+
 function setRoundInteractivity(enabled) {
   elements.countryInput.disabled = !enabled;
   elements.guessButton.disabled = !enabled;
@@ -991,7 +1007,7 @@ function startGame() {
   state.filteredSuggestions = [];
   state.highlightedIndex = -1;
   state.finished = false;
-  state.revealedTiles = 0;
+  state.revealedTiles = state.gameType === "flag" ? 1 : 0;
   state.revealOrder = shuffle(Array.from({ length: TOTAL_TILES }, (_, index) => index));
 
   if (state.gameType === "globe") {
@@ -1113,15 +1129,12 @@ elements.countryInput.addEventListener("keydown", (event) => {
 
   if (event.key === "ArrowDown") {
     event.preventDefault();
-    state.highlightedIndex = (state.highlightedIndex + 1) % state.filteredSuggestions.length;
-    renderSuggestions();
+    stepSuggestionHighlight(1);
   }
 
   if (event.key === "ArrowUp") {
     event.preventDefault();
-    state.highlightedIndex =
-      (state.highlightedIndex - 1 + state.filteredSuggestions.length) % state.filteredSuggestions.length;
-    renderSuggestions();
+    stepSuggestionHighlight(-1);
   }
 
   if (event.key === "Enter" && state.highlightedIndex >= 0) {
@@ -1129,9 +1142,9 @@ elements.countryInput.addEventListener("keydown", (event) => {
     selectSuggestion(state.filteredSuggestions[state.highlightedIndex]);
   }
 
-  if (event.key === "Tab" && state.highlightedIndex >= 0 && !event.shiftKey) {
+  if (event.key === "Tab") {
     event.preventDefault();
-    selectSuggestion(state.filteredSuggestions[state.highlightedIndex]);
+    stepSuggestionHighlight(event.shiftKey ? -1 : 1);
   }
 
   if (event.key === "Escape") {

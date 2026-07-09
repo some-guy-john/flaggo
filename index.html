@@ -6,7 +6,7 @@
   <title>Flaggo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,21 +14,11 @@
   <div class="page-shell">
     <header class="hero">
       <h1 id="page-title">Guess the country from its flag.</h1>
-      <div class="mode-cluster">
-        <div class="mode-switch" role="group" aria-label="Game type">
-          <button id="flag-game-button" class="mode-button" type="button">Flag</button>
-          <button id="globle-game-button" class="mode-button" type="button">Globle</button>
-        </div>
-        <div class="mode-switch sub-switch" role="group" aria-label="Play mode">
-          <button id="daily-mode-button" class="mode-button" type="button">Daily</button>
-          <button id="unlimited-mode-button" class="mode-button" type="button">Unlimited</button>
-        </div>
-      </div>
     </header>
 
     <main class="game-main">
       <section id="game-center" class="game-center" aria-labelledby="flag-title">
-        <div id="globle-stage" class="globle-stage is-hidden">
+        <div id="globle-stage" class="globle-stage stage-panel is-hidden">
           <div class="flag-frame globe-frame">
             <div id="globle-panel" class="globle-panel is-hidden" aria-hidden="true">
               <canvas id="globe-canvas" class="globe-canvas" aria-label="Draggable world globe"></canvas>
@@ -45,14 +35,25 @@
           </div>
         </div>
 
-        <div id="flag-stage" class="flag-stage">
+        <div id="flag-stage" class="flag-stage stage-panel">
           <div class="flag-frame">
             <img id="flag-image" class="flag-image" alt="Mystery country flag">
             <div id="flag-mask" class="flag-mask" aria-hidden="true"></div>
           </div>
         </div>
 
-        <div id="game-sidebar" class="globle-sidebar">
+        <aside id="game-sidebar" class="game-sidebar">
+          <div class="sidebar-modes" aria-label="Game mode controls">
+            <div class="mode-switch" role="group" aria-label="Game type">
+              <button id="flag-game-button" class="mode-button" type="button">Flag</button>
+              <button id="globle-game-button" class="mode-button" type="button">Globle</button>
+            </div>
+            <div class="mode-switch sub-switch" role="group" aria-label="Play mode">
+              <button id="daily-mode-button" class="mode-button" type="button">Daily</button>
+              <button id="unlimited-mode-button" class="mode-button" type="button">Unlimited</button>
+            </div>
+          </div>
+
           <div class="flag-meta">
             <h2 id="flag-title">Six guesses. Six tiles.</h2>
             <p id="status-message" class="status-message">Each valid guess reveals one tile. Find it before the whole flag opens.</p>
@@ -73,21 +74,20 @@
               >
               <button id="guess-button" class="primary-button" type="submit">Guess</button>
             </div>
+            <p class="input-hint">Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to lock one in.</p>
             <ul id="suggestions" class="suggestions" role="listbox" aria-label="Country suggestions"></ul>
           </form>
 
           <div class="section-heading board-heading">
             <h3 id="guesses-title">Guess board</h3>
-            <div class="board-tools">
-              <span id="history-count" class="history-count">6 slots</span>
-              <div class="button-row board-actions">
-                <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
-                <button id="new-game-button" class="ghost-button" type="button">New flag</button>
-              </div>
-            </div>
+            <span id="history-count" class="history-count">6 slots</span>
           </div>
           <ul id="guess-list" class="guess-list"></ul>
-        </div>
+          <div class="action-dock" role="group" aria-label="Round actions">
+            <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
+            <button id="new-game-button" class="ghost-button" type="button">New flag</button>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
