@@ -218,7 +218,8 @@ button {
   z-index: 1;
   min-width: 0;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
 }
 
 .game-sidebar {
@@ -238,12 +239,13 @@ button {
 
 .flag-frame {
   position: relative;
-  width: 100%;
+  width: min(100%, calc(64svh * var(--flag-aspect-number, 1.9)));
+  max-height: 100%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 640 / 337;
+  aspect-ratio: var(--flag-aspect-ratio, 640 / 337);
   border-radius: 26px;
   border: 1px solid rgba(255, 255, 255, 0.75);
   background:
@@ -265,12 +267,13 @@ button {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(23, 56, 75, 0.12)),
-    linear-gradient(90deg, transparent 0 2.8%, rgba(255, 255, 255, 0.28) 2.8% 3.1%, transparent 3.1% 96.9%, rgba(255, 255, 255, 0.28) 96.9% 97.2%, transparent 97.2% 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(23, 56, 75, 0.08));
 }
 
 .globe-frame {
+  width: 100%;
+  height: 100%;
+  max-height: none;
   min-height: 100%;
   aspect-ratio: auto;
   background: transparent;
@@ -283,9 +286,9 @@ button {
 }
 
 .flag-image {
-  width: min(100%, 680px);
+  width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 20px;
   box-shadow: 0 16px 34px rgba(18, 49, 66, 0.18);
 }

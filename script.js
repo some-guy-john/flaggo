@@ -49,6 +49,7 @@ const elements = {
   unlimitedModeButton: document.querySelector("#unlimited-mode-button"),
   gameCenter: document.querySelector("#game-center"),
   flagStage: document.querySelector("#flag-stage"),
+  flagFrame: document.querySelector("#flag-stage .flag-frame"),
   globleStage: document.querySelector("#globle-stage"),
   gameSidebar: document.querySelector("#game-sidebar"),
   flagImage: document.querySelector("#flag-image"),
@@ -532,6 +533,17 @@ function selectSuggestion(country) {
   elements.countryInput.value = country.name;
   clearSuggestions();
   elements.countryInput.focus();
+}
+
+function updateFlagFrameAspectRatio() {
+  const { naturalWidth, naturalHeight } = elements.flagImage;
+
+  if (!naturalWidth || !naturalHeight) {
+    return;
+  }
+
+  elements.flagFrame.style.setProperty("--flag-aspect-ratio", `${naturalWidth} / ${naturalHeight}`);
+  elements.flagFrame.style.setProperty("--flag-aspect-number", String(naturalWidth / naturalHeight));
 }
 
 function renderMask() {
@@ -1181,6 +1193,7 @@ elements.unlimitedModeButton.addEventListener("click", () => {
 
 elements.newGameButton.addEventListener("click", startGame);
 elements.giveUpButton.addEventListener("click", giveUp);
+elements.flagImage.addEventListener("load", updateFlagFrameAspectRatio);
 elements.globeCanvas.addEventListener("pointerdown", beginGlobeDrag);
 elements.globeCanvas.addEventListener("pointermove", moveGlobeDrag);
 elements.globeCanvas.addEventListener("pointerup", endGlobeDrag);
