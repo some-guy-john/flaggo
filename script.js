@@ -4,6 +4,7 @@ const countryByCode = new Map(countries.map((country) => [country.code, country]
 const MAX_GUESSES = 6;
 const TOTAL_TILES = 6;
 const MODE_STORAGE_KEY = "flaggo-mode-v2";
+const THEME_STORAGE_KEY = "flaggo-theme";
 const HEAT_BANDS_KM = {
   hot: 250,
   warm: 1000
@@ -69,7 +70,9 @@ const elements = {
   guessesTitle: document.querySelector("#guesses-title"),
   historyCount: document.querySelector("#history-count"),
   newGameButton: document.querySelector("#new-game-button"),
-  giveUpButton: document.querySelector("#give-up-button")
+  giveUpButton: document.querySelector("#give-up-button"),
+  themeToggle: document.querySelector("#theme-toggle"),
+  themeToggleLabel: document.querySelector("#theme-toggle-label")
 };
 
 const confetti = {
@@ -142,6 +145,37 @@ function saveSelection() {
   } catch {
     // Ignore storage failures and continue with in-memory state.
   }
+}
+
+function getSavedTheme() {
+  try {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (savedTheme === "dark" || savedTheme === "light") {
+      return savedTheme;
+    }
+  } catch {
+    // Ignore storage failures and fall back to the system preference.
+  }
+
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const normalizedTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = normalizedTheme;
+  elements.themeToggle.setAttribute("aria-pressed", String(normalizedTheme === "dark"));
+  elements.themeToggleLabel.textContent = normalizedTheme === "dark" ? "Light mode" : "Dark mode";
+
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
+  } catch {
+    // Theme still applies for the current session.
+  }
+}
+
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 }
 
 async function loadDailyScheduleFor(track, path) {
@@ -1193,6 +1227,7 @@ elements.unlimitedModeButton.addEventListener("click", () => {
 
 elements.newGameButton.addEventListener("click", startGame);
 elements.giveUpButton.addEventListener("click", giveUp);
+elements.themeToggle.addEventListener("click", toggleTheme);
 elements.flagImage.addEventListener("load", updateFlagFrameAspectRatio);
 elements.globeCanvas.addEventListener("pointerdown", beginGlobeDrag);
 elements.globeCanvas.addEventListener("pointermove", moveGlobeDrag);
@@ -1208,6 +1243,7 @@ window.addEventListener("resize", () => {
 });
 
 async function init() {
+  applyTheme(getSavedTheme());
   resizeConfettiCanvas();
 
   try {
