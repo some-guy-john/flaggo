@@ -61,15 +61,16 @@
                 class="atlas-map"
                 viewBox="0 0 1000 620"
                 role="img"
-                aria-label="Interactive map. Zoom, pan, and select a country to name it."
+                aria-label="Interactive map. Zoom and pan while naming countries from memory."
               ></svg>
               <div id="atlas-map-selection" class="atlas-map-selection" aria-live="polite">
-                Click a country, then name it
+                Type country names to fill the map
               </div>
               <div class="atlas-map-zoom" role="group" aria-label="Map zoom">
                 <button id="atlas-zoom-in" class="zoom-button" type="button" aria-label="Zoom in">+</button>
                 <button id="atlas-zoom-out" class="zoom-button" type="button" aria-label="Zoom out">&minus;</button>
                 <button id="atlas-zoom-reset" class="zoom-button atlas-reset-button" type="button" aria-label="Reset map view">↺</button>
+                <button id="atlas-show-remaining" class="zoom-button atlas-remaining-button" type="button" aria-pressed="false" aria-label="Highlight countries not yet named">◎</button>
               </div>
               <div class="atlas-map-legend" aria-hidden="true">
                 <span><i class="unnamed"></i>Unnamed</span>
@@ -144,11 +145,13 @@
                 type="text"
                 placeholder="Type the full country name..."
                 spellcheck="false"
-                aria-controls="spelling-suggestion"
+                aria-autocomplete="list"
+                aria-controls="country-suggestions spelling-suggestion"
                 aria-expanded="false"
               >
               <button id="guess-button" class="primary-button" type="submit">Guess</button>
             </div>
+            <ul id="country-suggestions" class="country-suggestions" role="listbox" aria-label="Country suggestions"></ul>
             <p id="input-hint" class="input-hint">Enter a full country name. Spelling help appears only after an unrecognized answer.</p>
             <div id="spelling-suggestion" class="spelling-suggestion" role="status" aria-live="polite"></div>
           </form>

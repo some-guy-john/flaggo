@@ -412,20 +412,14 @@ button {
   stroke: rgba(44, 48, 45, 0.28);
   stroke-width: 0.9;
   vector-effect: non-scaling-stroke;
-  cursor: pointer;
+  pointer-events: none;
+  cursor: default;
   transition: fill 0.16s ease, filter 0.16s ease;
 }
 
 .atlas-map.is-interacting .atlas-country {
   transition: none;
   shape-rendering: optimizeSpeed;
-}
-
-.atlas-country-hit-marker {
-  fill: transparent;
-  stroke: transparent;
-  pointer-events: all;
-  cursor: pointer;
 }
 
 .atlas-country.atlas-physical-base {
@@ -453,25 +447,17 @@ button {
   pointer-events: none;
 }
 
-.atlas-country:hover,
-.atlas-country:focus {
-  fill: #f4f5f2;
-  filter: brightness(1.02);
-  outline: none;
-}
-
 .atlas-country.outside-set {
   fill: rgba(232, 235, 228, 0.5);
   stroke: rgba(44, 48, 45, 0.14);
   pointer-events: none;
 }
 
-.atlas-country.selected {
-  fill: var(--accent);
+.atlas-country.remaining {
+  fill: color-mix(in srgb, var(--accent) 48%, #e8ebe4);
   stroke: var(--accent-hover);
-  stroke-width: 1.8;
+  stroke-width: 1.4;
 }
-
 .atlas-country.named {
   fill: var(--success);
   stroke: var(--success);
@@ -493,17 +479,12 @@ button {
   stroke: rgba(228, 230, 224, 0.24);
 }
 
-:root[data-theme="dark"] .atlas-country:hover,
-:root[data-theme="dark"] .atlas-country:focus {
-  fill: #4a5049;
-}
-
 :root[data-theme="dark"] .atlas-country.outside-set {
   fill: rgba(58, 63, 57, 0.6);
 }
 
-:root[data-theme="dark"] .atlas-country.selected {
-  fill: var(--accent);
+:root[data-theme="dark"] .atlas-country.remaining {
+  fill: color-mix(in srgb, var(--accent) 52%, #3a3f39);
 }
 
 :root[data-theme="dark"] .atlas-country.named {
@@ -931,6 +912,43 @@ kbd {
   background: var(--bg);
   font-size: 0.7rem;
   font-family: var(--font-sans);
+}
+
+.country-suggestions {
+  position: absolute;
+  top: calc(2.9rem + 0.55rem);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: none;
+  max-height: min(260px, 28svh);
+  margin: 0;
+  padding: 0.36rem;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.country-suggestions.visible {
+  display: block;
+}
+
+.country-suggestion-item {
+  padding: 0.72rem 0.82rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.country-suggestion-item.active,
+.country-suggestion-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .spelling-suggestion {
@@ -1949,6 +1967,7 @@ select:focus-visible,
 
 .atlas-map-shell,
 .guess-item,
+.country-suggestions,
 .spelling-suggestion-button {
   border-radius: 16px;
 }
