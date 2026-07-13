@@ -12,6 +12,136 @@ const HEAT_BANDS_KM = {
 const GLOBE_ZOOM_MIN = 0.7;
 const GLOBE_ZOOM_MAX = 3.2;
 const GLOBE_ZOOM_BUTTON_STEP = 0.25;
+const MAP_FEATURE_CODE_OVERRIDES = new Map([
+  ["France", "fr"],
+  ["Norway", "no"]
+]);
+const ATLAS_SETS = [
+  { id: "world", label: "All 195 countries", kind: "countries", region: null },
+  { id: "africa", label: "All countries in Africa", kind: "countries", region: "africa" },
+  { id: "asia", label: "All countries in Asia", kind: "countries", region: "asia" },
+  { id: "europe", label: "All countries in Europe", kind: "countries", region: "europe" },
+  { id: "north-america", label: "All countries in North America", kind: "countries", region: "north-america" },
+  { id: "south-america", label: "All countries in South America", kind: "countries", region: "south-america" },
+  { id: "oceania", label: "All countries in Oceania", kind: "countries", region: "oceania" },
+  { id: "oceans-seas", label: "Oceans & major seas", kind: "waters" },
+  { id: "continents", label: "The seven continents", kind: "continents" }
+];
+const ATLAS_SET_IDS = new Set(ATLAS_SETS.map((set) => set.id));
+const ATLAS_PHYSICAL_PLACES = [
+  { id: "gulf_of_mexico", name: "Gulf of Mexico", kind: "waters", aliases: [], map: "ug-map-gulf_of_mexico.png" },
+  { id: "philippine_sea", name: "Philippine Sea", kind: "waters", aliases: [], map: "ug-map-philippine_sea.png" },
+  { id: "southern_ocean", name: "Southern Ocean", kind: "waters", aliases: ["antarctic ocean"], map: "ug-map-southern_ocean-nobox.png" },
+  { id: "gulf_of_thailand", name: "Gulf of Thailand", kind: "waters", aliases: [], map: "ug-map-gulf_of_thailand.png" },
+  { id: "pacific_ocean", name: "Pacific Ocean", kind: "waters", aliases: [], map: "ug-map-pacific_ocean-nobox.png" },
+  { id: "atlantic_ocean", name: "Atlantic Ocean", kind: "waters", aliases: [], map: "ug-map-atlantic_ocean-nobox.png" },
+  { id: "indian_ocean", name: "Indian Ocean", kind: "waters", aliases: [], map: "ug-map-indian_ocean-nobox.png" },
+  { id: "arctic_ocean", name: "Arctic Ocean", kind: "waters", aliases: [], map: "ug-map-arctic_ocean-nobox.png" },
+  { id: "hudson_bay", name: "Hudson Bay", kind: "waters", aliases: [], map: "ug-map-hudson_bay.png" },
+  { id: "labrador_sea", name: "Labrador Sea", kind: "waters", aliases: [], map: "ug-map-labrador_sea.png" },
+  { id: "white_sea", name: "White Sea", kind: "waters", aliases: [], map: "ug-map-white_sea.png" },
+  { id: "denmark_strait", name: "Denmark Strait", kind: "waters", aliases: [], map: "ug-map-denmark_strait.png" },
+  { id: "norwegian_sea", name: "Norwegian Sea", kind: "waters", aliases: [], map: "ug-map-norwegian_sea.png" },
+  { id: "baltic_sea", name: "Baltic Sea", kind: "waters", aliases: [], map: "ug-map-baltic_sea.png" },
+  { id: "celtic_sea", name: "Celtic Sea", kind: "waters", aliases: [], map: "ug-map-celtic_sea.png" },
+  { id: "english_channel", name: "English Channel", kind: "waters", aliases: ["la manche"], map: "ug-map-english_channel.png" },
+  { id: "adriatic_sea", name: "Adriatic Sea", kind: "waters", aliases: [], map: "ug-map-adriatic_sea.png" },
+  { id: "bay_of_biscay", name: "Bay of Biscay", kind: "waters", aliases: [], map: "ug-map-bay_of_biscay.png" },
+  { id: "black_sea", name: "Black Sea", kind: "waters", aliases: [], map: "ug-map-black_sea.png" },
+  { id: "aegean_sea", name: "Aegean Sea", kind: "waters", aliases: [], map: "ug-map-aegean_sea.png" },
+  { id: "caspian_sea", name: "Caspian Sea", kind: "waters", aliases: [], map: "ug-map-caspian_sea.png" },
+  { id: "mediterranean_sea", name: "Mediterranean Sea", kind: "waters", aliases: [], map: "ug-map-mediterranean_sea.png" },
+  { id: "east_siberian_sea", name: "East Siberian Sea", kind: "waters", aliases: [], map: "ug-map-east_siberian_sea.png" },
+  { id: "bering_strait", name: "Bering Strait", kind: "waters", aliases: [], map: "ug-map-bering_strait.png" },
+  { id: "arabian_sea", name: "Arabian Sea", kind: "waters", aliases: [], map: "ug-map-arabian_sea.png" },
+  { id: "red_sea", name: "Red Sea", kind: "waters", aliases: [], map: "ug-map-red_sea.png" },
+  { id: "dead_sea", name: "Dead Sea", kind: "waters", aliases: [], map: "ug-map-dead_sea.png" },
+  { id: "bay_of_bengal", name: "Bay of Bengal", kind: "waters", aliases: [], map: "ug-map-bay_of_bengal.png" },
+  { id: "sea_of_japan", name: "Sea of Japan", kind: "waters", aliases: ["east sea"], map: "ug-map-sea_of_japan.png" },
+  { id: "yellow_sea", name: "Yellow Sea", kind: "waters", aliases: [], map: "ug-map-yellow_sea.png" },
+  { id: "coral_sea", name: "Coral Sea", kind: "waters", aliases: [], map: "ug-map-coral_sea.png" },
+  { id: "south_china_sea", name: "South China Sea", kind: "waters", aliases: [], map: "ug-map-south_china_sea.png" },
+  { id: "tasman_sea", name: "Tasman Sea", kind: "waters", aliases: [], map: "ug-map-tasman_sea.png" },
+  { id: "gulf_of_carpentaria", name: "Gulf of Carpentaria", kind: "waters", aliases: [], map: "ug-map-gulf_of_carpentaria.png" },
+  { id: "aral_sea", name: "Aral Sea", kind: "waters", aliases: [], map: "ug-map-aral_sea.png" },
+  { id: "persian_gulf", name: "Persian Gulf", kind: "waters", aliases: ["arabian gulf"], map: "ug-map-persian_gulf.png" },
+  { id: "caribbean_sea", name: "Caribbean Sea", kind: "waters", aliases: [], map: "ug-map-caribbean_sea.png" },
+  { id: "gulf_of_california", name: "Gulf of California", kind: "waters", aliases: ["sea of cortez", "sea of cortés"], map: "ug-map-gulf_of_california.png" },
+  { id: "sea_of_galilee", name: "Sea of Galilee", kind: "waters", aliases: ["lake tiberias", "lake kinneret"], map: "ug-map-sea_of_galilee.png" },
+  { id: "banda_sea", name: "Banda Sea", kind: "waters", aliases: [], map: "ug-map-banda_sea.png" },
+  { id: "barents_sea", name: "Barents Sea", kind: "waters", aliases: [], map: "ug-map-barents_sea.png" },
+  { id: "celebes_sea", name: "Celebes Sea", kind: "waters", aliases: ["sulawesi sea"], map: "ug-map-celebes_sea.png" },
+  { id: "east_china_sea", name: "East China Sea", kind: "waters", aliases: [], map: "ug-map-east_china_sea.png" },
+  { id: "gulf_of_alaska", name: "Gulf of Alaska", kind: "waters", aliases: [], map: "ug-map-gulf_of_alaska.png" },
+  { id: "gulf_of_guinea", name: "Gulf of Guinea", kind: "waters", aliases: [], map: "ug-map-gulf_of_guinea.png" },
+  { id: "north_sea", name: "North Sea", kind: "waters", aliases: [], map: "ug-map-north_sea.png" },
+  { id: "sea_of_okhotsk", name: "Sea of Okhotsk", kind: "waters", aliases: [], map: "ug-map-sea_of_okhotsk.png" },
+  { id: "timor_sea", name: "Timor Sea", kind: "waters", aliases: [], map: "ug-map-timor_sea.png" },
+  { id: "europe", name: "Europe", kind: "continents", aliases: [], map: "ug-map-europe-nobox.png" },
+  { id: "north_america", name: "North America", kind: "continents", aliases: [], map: "ug-map-north_america-nobox.png" },
+  { id: "south_america", name: "South America", kind: "continents", aliases: [], map: "ug-map-south_america-nobox.png" },
+  { id: "asia", name: "Asia", kind: "continents", aliases: [], map: "ug-map-asia-nobox.png" },
+  { id: "africa", name: "Africa", kind: "continents", aliases: [], map: "ug-map-africa-nobox.png" },
+  { id: "oceania", name: "Oceania", kind: "continents", aliases: [], map: "ug-map-oceania-nobox.png" },
+  { id: "antarctica", name: "Antarctica", kind: "continents", aliases: [], map: "ug-map-antarctica-nobox.png" }
+];
+const ATLAS_PHYSICAL_COORDINATES = new Map([
+  ["gulf_of_mexico", [-90, 24]],
+  ["philippine_sea", [134, 20]],
+  ["southern_ocean", [0, -60]],
+  ["gulf_of_thailand", [101, 9]],
+  ["pacific_ocean", [-150, 0]],
+  ["atlantic_ocean", [-30, 0]],
+  ["indian_ocean", [80, -20]],
+  ["arctic_ocean", [0, 82]],
+  ["hudson_bay", [-85, 60]],
+  ["labrador_sea", [-55, 57]],
+  ["white_sea", [36.5, 65]],
+  ["denmark_strait", [-28, 66]],
+  ["norwegian_sea", [3, 68]],
+  ["baltic_sea", [19, 58]],
+  ["celtic_sea", [-8, 50]],
+  ["english_channel", [-1.5, 50]],
+  ["adriatic_sea", [15, 43]],
+  ["bay_of_biscay", [-5, 46]],
+  ["black_sea", [34, 44]],
+  ["aegean_sea", [25, 39]],
+  ["caspian_sea", [51, 42]],
+  ["mediterranean_sea", [18, 35]],
+  ["east_siberian_sea", [165, 72]],
+  ["bering_strait", [-169, 66]],
+  ["arabian_sea", [65, 15]],
+  ["red_sea", [38, 20]],
+  ["dead_sea", [35.5, 31.5]],
+  ["bay_of_bengal", [88, 15]],
+  ["sea_of_japan", [135, 40]],
+  ["yellow_sea", [123, 35]],
+  ["coral_sea", [155, -20]],
+  ["south_china_sea", [115, 14]],
+  ["tasman_sea", [160, -40]],
+  ["gulf_of_carpentaria", [139, -15]],
+  ["aral_sea", [60.5, 45]],
+  ["persian_gulf", [51, 27]],
+  ["caribbean_sea", [-75, 15]],
+  ["gulf_of_california", [-110, 28]],
+  ["sea_of_galilee", [35.6, 32.8]],
+  ["banda_sea", [128, -5]],
+  ["barents_sea", [40, 75]],
+  ["celebes_sea", [122, 3]],
+  ["east_china_sea", [125, 28]],
+  ["gulf_of_alaska", [-145, 57]],
+  ["gulf_of_guinea", [2, 1]],
+  ["north_sea", [3, 56]],
+  ["sea_of_okhotsk", [150, 53]],
+  ["timor_sea", [127, -11]]
+]);
+const ATLAS_WATER_FALLBACK_AREAS = new Map([
+  ["celtic_sea", [22, 14, -18]],
+  ["bering_strait", [15, 22, 12]],
+  ["dead_sea", [9, 18, -8]],
+  ["aral_sea", [15, 12, 0]],
+  ["sea_of_galilee", [8, 12, 0]]
+]);
 
 const state = {
   target: null,
@@ -29,6 +159,8 @@ const state = {
   },
   dailyDateKey: null,
   centroids: new Map(),
+  atlasFeatures: [],
+  marineFeatureByName: new Map(),
   globeFeatures: [],
   globeFeatureByCode: new Map(),
   globeRotation: [-20, -18, 0],
@@ -39,16 +171,41 @@ const state = {
   globeRenderQueued: false,
   globeProjection: null,
   globePath: null,
-  globeAnimationFrame: null
+  globeAnimationFrame: null,
+  atlasCountries: [],
+  atlasSet: "world",
+  atlasQueue: [],
+  atlasIndex: 0,
+  atlasAnswered: false,
+  atlasAdvanceTimer: null,
+  atlasSelectedCode: null,
+  atlasZoomBehavior: null,
+  atlasMapLayer: null,
+  atlasZoomFrame: null,
+  atlasPendingTransform: null,
+  palette: "sage"
 };
 
 const elements = {
   confettiCanvas: document.querySelector("#confetti-canvas"),
   flagGameButton: document.querySelector("#flag-game-button"),
   globleGameButton: document.querySelector("#globle-game-button"),
+  atlasGameButton: document.querySelector("#atlas-game-button"),
   dailyModeButton: document.querySelector("#daily-mode-button"),
   unlimitedModeButton: document.querySelector("#unlimited-mode-button"),
+  playModeSwitch: document.querySelector("#play-mode-switch"),
+  atlasSetControl: document.querySelector("#atlas-set-control"),
+  atlasSetSelect: document.querySelector("#atlas-set-select"),
   gameCenter: document.querySelector("#game-center"),
+  atlasStage: document.querySelector("#atlas-stage"),
+  atlasHeading: document.querySelector("#atlas-heading"),
+  atlasMapShell: document.querySelector("#atlas-map-shell"),
+  atlasMap: document.querySelector("#atlas-map"),
+  atlasMapSelection: document.querySelector("#atlas-map-selection"),
+  atlasZoomInButton: document.querySelector("#atlas-zoom-in"),
+  atlasZoomOutButton: document.querySelector("#atlas-zoom-out"),
+  atlasZoomResetButton: document.querySelector("#atlas-zoom-reset"),
+  atlasPosition: document.querySelector("#atlas-position"),
   flagStage: document.querySelector("#flag-stage"),
   flagFrame: document.querySelector("#flag-stage .flag-frame"),
   globleStage: document.querySelector("#globle-stage"),
@@ -63,8 +220,10 @@ const elements = {
   roundTitle: document.querySelector("#flag-title"),
   statusMessage: document.querySelector("#status-message"),
   guessForm: document.querySelector("#guess-form"),
+  countryInputLabel: document.querySelector('label[for="country-input"]'),
   countryInput: document.querySelector("#country-input"),
   guessButton: document.querySelector("#guess-button"),
+  inputHint: document.querySelector("#input-hint"),
   suggestions: document.querySelector("#suggestions"),
   guessList: document.querySelector("#guess-list"),
   guessesTitle: document.querySelector("#guesses-title"),
@@ -72,7 +231,10 @@ const elements = {
   newGameButton: document.querySelector("#new-game-button"),
   giveUpButton: document.querySelector("#give-up-button"),
   themeToggle: document.querySelector("#theme-toggle"),
-  themeToggleLabel: document.querySelector("#theme-toggle-label")
+  themeToggleLabel: document.querySelector("#theme-toggle-label"),
+  settingsButton: document.querySelector("#settings-button"),
+  modalOverlay: document.querySelector("#modal-overlay"),
+  modalClose: document.querySelector("#modal-close")
 };
 
 const confetti = {
@@ -81,6 +243,99 @@ const confetti = {
   endAt: 0,
   context: null
 };
+
+const PALETTES = {
+  sage: {
+    light: {'--bg':'#f4f5f2','--surface':'#fafaf7','--fg':'#2c302d','--muted':'#777c74','--border':'#e2e5df','--accent':'#6b8b7a','--accent-hover':'#557364','--accent-soft':'rgba(107,139,122,0.08)','--success':'#7aaa8a','--success-soft':'rgba(122,170,138,0.1)','--danger':'#c47a6b','--danger-soft':'rgba(196,122,107,0.08)','--warning':'#d4a56a','--heat-cold':'#98b7c5','--heat-warm':'#d4a56a','--heat-hot':'#c47a6b'},
+    dark: {'--bg':'#1a1c19','--surface':'#242722','--fg':'#e4e6e0','--muted':'#92988b','--border':'#353830','--accent':'#8db8a0','--accent-hover':'#a3cdb5','--accent-soft':'rgba(141,184,160,0.12)','--success':'#8db89a','--success-soft':'rgba(141,184,154,0.12)','--danger':'#d99585','--danger-soft':'rgba(217,149,133,0.1)','--warning':'#e0b87c','--heat-cold':'#82a6b8','--heat-warm':'#e0b87c','--heat-hot':'#d99585'}
+  },
+  lavender: {
+    light: {'--bg':'#f6f5f9','--surface':'#fdfcfd','--fg':'#2d2a35','--muted':'#7a7688','--border':'#e5e3ec','--accent':'#8b7d9e','--accent-hover':'#736588','--accent-soft':'rgba(139,125,158,0.08)','--success':'#8a9e8a','--success-soft':'rgba(138,158,138,0.1)','--danger':'#c47a7a','--danger-soft':'rgba(196,122,122,0.08)','--warning':'#c4a47a','--heat-cold':'#9a98c0','--heat-warm':'#c4a47a','--heat-hot':'#c47a7a'},
+    dark: {'--bg':'#1c1a22','--surface':'#26242e','--fg':'#e5e3ec','--muted':'#9b96a8','--border':'#353340','--accent':'#ad9ec0','--accent-hover':'#c0b3d1','--accent-soft':'rgba(173,158,192,0.12)','--success':'#9ec0a2','--success-soft':'rgba(158,192,162,0.12)','--danger':'#d9a09a','--danger-soft':'rgba(217,160,154,0.1)','--warning':'#d9b89a','--heat-cold':'#a9a6cf','--heat-warm':'#d9b89a','--heat-hot':'#d9a09a'}
+  },
+  ochre: {
+    light: {'--bg':'#faf7f2','--surface':'#fefdf9','--fg':'#3d3228','--muted':'#8a7a68','--border':'#ece5db','--accent':'#c4956a','--accent-hover':'#a87b52','--accent-soft':'rgba(196,149,106,0.08)','--success':'#899b6a','--success-soft':'rgba(137,155,106,0.1)','--danger':'#c47a6b','--danger-soft':'rgba(196,122,107,0.08)','--warning':'#c4a55a','--heat-cold':'#a0b8b0','--heat-warm':'#c4a55a','--heat-hot':'#c47a6b'},
+    dark: {'--bg':'#1f1c17','--surface':'#2a2620','--fg':'#ebe5d8','--muted':'#a09880','--border':'#3d362d','--accent':'#d4a875','--accent-hover':'#e0bb90','--accent-soft':'rgba(212,168,117,0.12)','--success':'#a0b880','--success-soft':'rgba(160,184,128,0.12)','--danger':'#d9a090','--danger-soft':'rgba(217,160,144,0.1)','--warning':'#d9b878','--heat-cold':'#b0c5bb','--heat-warm':'#d9b878','--heat-hot':'#d9a090'}
+  },
+  ocean: {
+    light: {'--bg':'#f4f6f8','--surface':'#fcfdfd','--fg':'#24333a','--muted':'#6b7d85','--border':'#dfe4e8','--accent':'#6b8e9e','--accent-hover':'#547586','--accent-soft':'rgba(107,142,158,0.08)','--success':'#7a9e8a','--success-soft':'rgba(122,158,138,0.1)','--danger':'#b88a7a','--danger-soft':'rgba(184,138,122,0.08)','--warning':'#b8a070','--heat-cold':'#8ea8b8','--heat-warm':'#b8a070','--heat-hot':'#b88a7a'},
+    dark: {'--bg':'#151d21','--surface':'#1f282d','--fg':'#e0e6ea','--muted':'#8c9ba2','--border':'#2f383e','--accent':'#8cb0c0','--accent-hover':'#a2c4d2','--accent-soft':'rgba(140,176,192,0.12)','--success':'#8db89a','--success-soft':'rgba(141,184,154,0.12)','--danger':'#d0a090','--danger-soft':'rgba(208,160,144,0.1)','--warning':'#d0b888','--heat-cold':'#9eb8c8','--heat-warm':'#d0b888','--heat-hot':'#d0a090'}
+  }
+};
+
+function applyPalette(name) {
+  state.palette = name;
+  const theme = document.documentElement.dataset.theme || 'light';
+  const vars = PALETTES[name]?.[theme] || PALETTES.sage[theme];
+  const root = document.documentElement.style;
+  Object.entries(vars).forEach(([k, v]) => root.setProperty(k, v));
+  document.querySelectorAll('.palette-card').forEach(c => {
+    const selected = c.dataset.palette === name;
+    c.classList.toggle('selected', selected);
+    c.setAttribute('aria-pressed', String(selected));
+  });
+  localStorage.setItem('flaggo-palette', name);
+}
+
+function initPalette() {
+  const saved = localStorage.getItem('flaggo-palette');
+  const name = PALETTES[saved] ? saved : 'sage';
+  applyPalette(name);
+}
+
+function initSettingsModal() {
+  const open = () => {
+    elements.modalOverlay.classList.add('open');
+    document.body.classList.add('modal-open');
+    elements.modalOverlay.querySelector('.palette-card[aria-pressed="true"]')?.focus();
+  };
+  const close = () => {
+    elements.modalOverlay.classList.remove('open');
+    document.body.classList.remove('modal-open');
+    elements.settingsButton?.focus();
+  };
+
+  elements.settingsButton?.addEventListener('click', open);
+  elements.modalClose?.addEventListener('click', close);
+  elements.modalOverlay?.addEventListener('click', (event) => {
+    if (event.target === elements.modalOverlay) close();
+  });
+  elements.modalOverlay?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key === 'Tab') {
+      const focusable = Array.from(
+        elements.modalOverlay.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
+
+  elements.modalOverlay?.querySelectorAll('.palette-card').forEach((card) => {
+    const select = () => applyPalette(card.dataset.palette);
+    card.addEventListener('click', select);
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        select();
+      }
+    });
+  });
+}
 
 function normalize(text) {
   return text
@@ -120,16 +375,17 @@ function getSavedSelection() {
     const raw = window.localStorage.getItem(MODE_STORAGE_KEY);
 
     if (!raw) {
-      return { gameType: "flag", playMode: "daily" };
+      return { gameType: "flag", playMode: "daily", atlasSet: "world" };
     }
 
     const parsed = JSON.parse(raw);
-    const gameType = parsed?.gameType === "globe" ? "globe" : "flag";
+    const gameType = ["flag", "globe", "atlas"].includes(parsed?.gameType) ? parsed.gameType : "flag";
     const playMode = parsed?.playMode === "unlimited" ? "unlimited" : "daily";
+    const atlasSet = ATLAS_SET_IDS.has(parsed?.atlasSet) ? parsed.atlasSet : "world";
 
-    return { gameType, playMode };
+    return { gameType, playMode, atlasSet };
   } catch {
-    return { gameType: "flag", playMode: "daily" };
+    return { gameType: "flag", playMode: "daily", atlasSet: "world" };
   }
 }
 
@@ -139,7 +395,8 @@ function saveSelection() {
       MODE_STORAGE_KEY,
       JSON.stringify({
         gameType: state.gameType,
-        playMode: state.playMode
+        playMode: state.playMode,
+        atlasSet: state.atlasSet
       })
     );
   } catch {
@@ -163,15 +420,19 @@ function getSavedTheme() {
 
 function applyTheme(theme) {
   const normalizedTheme = theme === "dark" ? "dark" : "light";
+  const toggleLabel = normalizedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
   document.documentElement.dataset.theme = normalizedTheme;
   elements.themeToggle.setAttribute("aria-pressed", String(normalizedTheme === "dark"));
-  elements.themeToggleLabel.textContent = normalizedTheme === "dark" ? "Light mode" : "Dark mode";
+  elements.themeToggle.setAttribute("aria-label", toggleLabel);
+  elements.themeToggleLabel.textContent = toggleLabel;
 
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
   } catch {
     // Theme still applies for the current session.
   }
+
+  applyPalette(state.palette);
 }
 
 function toggleTheme() {
@@ -204,23 +465,114 @@ async function loadCentroids() {
   state.centroids = new Map((payload.entries || []).map((entry) => [entry.code, entry]));
 }
 
+async function loadAtlasCountries() {
+  const response = await fetch("./data/countries-master.json");
+
+  if (!response.ok) {
+    throw new Error(`Failed to load atlas country groups: ${response.status}`);
+  }
+
+  const records = await response.json();
+  const recordByCode = new Map(records.map((record) => [record.cca2?.toLowerCase(), record]));
+
+  state.atlasCountries = countries.map((country) => {
+    const record = recordByCode.get(country.code);
+    if (!record) {
+      throw new Error(`Atlas region is missing for ${country.name}.`);
+    }
+
+    let region = record.region.toLowerCase();
+    if (record.region === "Americas") {
+      region = record.subregion === "South America" ? "south-america" : "north-america";
+    }
+
+    return {
+      ...country,
+      id: country.code,
+      kind: "countries",
+      region
+    };
+  });
+}
+
 async function loadWorldMap() {
-  const response = await fetch("./data/world-countries.geojson");
+  const response = await fetch("./data/world-countries-lite.geojson");
 
   if (!response.ok) {
     throw new Error(`Failed to load world map: ${response.status}`);
   }
 
   const payload = await response.json();
-  state.globeFeatures = (payload.features || [])
-    .filter((feature) => feature?.properties?.["ISO3166-1-Alpha-2"])
+  const mapFeatures = (payload.features || [])
+    .filter((feature) => feature?.properties?.["ISO3166-1-Alpha-2"] && feature?.geometry)
+    .map(normalizeMapFeatureWinding);
+
+  state.atlasFeatures = mapFeatures
+    .map((feature) => {
+      const simplified = simplifyFeature(feature, 0.1);
+      return simplified.geometry.coordinates.length ? simplified : feature;
+    })
+    .map(normalizeMapFeatureWinding)
+    .filter((feature) => feature.geometry.coordinates.length);
+  state.globeFeatures = mapFeatures
     .map((feature) => simplifyFeature(feature, 0.2))
+    .map(normalizeMapFeatureWinding)
     .filter((feature) => feature.geometry.coordinates.length);
   state.globeFeatureByCode = new Map(
     state.globeFeatures
       .map((feature) => [getFeatureCode(feature), feature])
       .filter(([code]) => Boolean(code))
   );
+}
+
+async function loadMarineAreas() {
+  const response = await fetch("./data/marine-areas.geojson");
+
+  if (!response.ok) {
+    throw new Error(`Failed to load marine areas: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const featureByName = new Map();
+
+  (payload.features || []).forEach((feature) => {
+    const name = feature?.properties?.name_en || feature?.properties?.name;
+    if (!name || !feature?.geometry) {
+      return;
+    }
+
+    const key = normalize(name);
+    const matches = featureByName.get(key) || [];
+    matches.push(feature);
+    featureByName.set(key, matches);
+  });
+
+  state.marineFeatureByName = featureByName;
+}
+
+function normalizeMapFeatureWinding(feature) {
+  if (typeof d3 === "undefined") {
+    return feature;
+  }
+
+  const reverseRing = (ring) => [...ring].reverse();
+  const normalizePolygon = (polygon) => {
+    const polygonArea = d3.geoArea({ type: "Polygon", coordinates: polygon });
+    return polygonArea > Math.PI * 2 ? polygon.map(reverseRing) : polygon;
+  };
+  const coordinates = feature.geometry.type === "Polygon"
+    ? normalizePolygon(feature.geometry.coordinates)
+    : feature.geometry.type === "MultiPolygon"
+      ? feature.geometry.coordinates.map(normalizePolygon)
+      : feature.geometry.coordinates;
+
+  return {
+    ...feature,
+    geometry: {
+      ...feature.geometry,
+      coordinates
+    }
+  };
 }
 
 function simplifyFeature(feature, tolerance) {
@@ -358,10 +710,13 @@ function getSuggestions(query) {
     return [];
   }
 
-  const ranked = countries
-    .map((country) => {
-      const primaryName = normalize(country.name);
-      const normalizedAliases = country.aliases.map((alias) => normalize(alias));
+  const candidates = state.gameType === "atlas"
+    ? isAtlasCountrySet() ? countries : getAtlasPlacesForSet()
+    : countries;
+  const ranked = candidates
+    .map((place) => {
+      const primaryName = normalize(place.name);
+      const normalizedAliases = (place.aliases || []).map((alias) => normalize(alias));
       const primaryStarts = primaryName.startsWith(normalizedQuery);
       const aliasStarts = normalizedAliases.some((alias) => alias.startsWith(normalizedQuery));
       const primaryIncludes = primaryName.includes(normalizedQuery);
@@ -378,7 +733,7 @@ function getSuggestions(query) {
         score = 1;
       }
 
-      return { country, score };
+      return { place, score };
     })
     .filter((entry) => entry.score > 0);
 
@@ -391,10 +746,37 @@ function getSuggestions(query) {
         return b.score - a.score;
       }
 
-      return a.country.name.localeCompare(b.country.name);
+      return a.place.name.localeCompare(b.place.name);
     })
     .slice(0, 8)
-    .map((entry) => entry.country);
+    .map((entry) => entry.place);
+}
+
+function getAtlasSetDefinition() {
+  return ATLAS_SETS.find((set) => set.id === state.atlasSet) || ATLAS_SETS[0];
+}
+
+function getAtlasPlacesForSet() {
+  const set = getAtlasSetDefinition();
+
+  if (set.kind === "countries") {
+    return set.region
+      ? state.atlasCountries.filter((place) => place.region === set.region)
+      : state.atlasCountries;
+  }
+
+  return ATLAS_PHYSICAL_PLACES
+    .filter((place) => place.kind === set.kind)
+    .map((place) => ({ ...place, coordinates: ATLAS_PHYSICAL_COORDINATES.get(place.id) || null }));
+}
+
+function isAtlasCountrySet() {
+  return getAtlasSetDefinition().kind === "countries";
+}
+
+function isAtlasAnswer(place, query) {
+  const normalizedQuery = normalize(query);
+  return [place.name, ...(place.aliases || [])].some((answer) => normalize(answer) === normalizedQuery);
 }
 
 function renderSuggestions() {
@@ -412,7 +794,7 @@ function renderSuggestions() {
     item.className = "suggestion-item";
     item.textContent = country.name;
     item.setAttribute("role", "option");
-    item.setAttribute("id", `suggestion-${country.code}`);
+    item.setAttribute("id", `suggestion-${country.code || country.id}`);
 
     if (index === state.highlightedIndex) {
       item.classList.add("active");
@@ -466,7 +848,42 @@ function formatDistance(distanceKm) {
 function renderGuesses() {
   elements.guessList.innerHTML = "";
   const isGlobe = state.gameType === "globe";
+  const isAtlas = state.gameType === "atlas";
   elements.guessList.classList.toggle("globle-board", isGlobe);
+  elements.guessList.classList.toggle("atlas-board", isAtlas);
+
+  if (isAtlas) {
+    const namedCount = state.guesses.filter((guess) => guess.correct).length;
+    const total = state.atlasQueue.length;
+    const completedCount = state.guesses.length;
+    elements.historyCount.textContent = isAtlasCountrySet()
+      ? `${namedCount} named · ${total - completedCount} left`
+      : `${namedCount} / ${total} named`;
+
+    if (!state.guesses.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.className = "guess-item empty";
+      emptyItem.innerHTML = `
+        <span class="guess-label">Set ready</span>
+        <span class="guess-result">${isAtlasCountrySet()
+          ? "Click a country or type its name. Use the map until every country is complete."
+          : "Name the highlighted area. Use autocomplete or reveal the answer."}</span>
+      `;
+      elements.guessList.appendChild(emptyItem);
+      return;
+    }
+
+    state.guesses.slice(-6).reverse().forEach((guess) => {
+      const item = document.createElement("li");
+      item.className = `guess-item ${guess.correct ? "correct" : "incorrect"}`;
+      item.innerHTML = `
+        <span class="guess-label">${guess.number}. ${guess.name}</span>
+        <span class="guess-result">${guess.correct ? "Named" : "Revealed"}</span>
+      `;
+      elements.guessList.appendChild(item);
+    });
+    return;
+  }
 
   if (isGlobe) {
     elements.historyCount.textContent = state.finished ? "Round complete" : `${state.guesses.length} guesses`;
@@ -611,7 +1028,12 @@ function revealAllTiles() {
 }
 
 function getFeatureCode(feature) {
-  return feature?.properties?.["ISO3166-1-Alpha-2"]?.toLowerCase() || null;
+  const rawCode = feature?.properties?.["ISO3166-1-Alpha-2"]?.toLowerCase();
+  if (rawCode && rawCode !== "-99") {
+    return rawCode;
+  }
+
+  return MAP_FEATURE_CODE_OVERRIDES.get(feature?.properties?.name) || null;
 }
 
 function getGuessColor(guess) {
@@ -742,6 +1164,275 @@ function queueGlobeRender() {
   });
 }
 
+function getAtlasCountryPlaceByCode(code) {
+  return state.atlasQueue.find((place) => place.code === code) || null;
+}
+
+function getAtlasMapHeading() {
+  const labels = {
+    world: "World map",
+    africa: "Africa map",
+    asia: "Asia map",
+    europe: "Europe map",
+    "north-america": "North America map",
+    "south-america": "South America map",
+    oceania: "Oceania map"
+  };
+
+  return labels[state.atlasSet] || "Country map";
+}
+
+function getAtlasPhysicalTargetCodes(place) {
+  if (!place || place.kind !== "continents") {
+    return new Set();
+  }
+
+  if (place.id === "antarctica") {
+    return new Set(["aq"]);
+  }
+
+  const region = place.id.replaceAll("_", "-");
+  return new Set(
+    state.atlasCountries
+      .filter((country) => country.region === region)
+      .map((country) => country.code)
+  );
+}
+
+function updateAtlasCountryMapStyles() {
+  if (!elements.atlasMap || typeof d3 === "undefined") {
+    return;
+  }
+
+  const completedById = new Map(state.guesses.map((guess) => [guess.id, guess]));
+  d3.select(elements.atlasMap)
+    .selectAll(".atlas-country")
+    .classed("selected", (feature) => {
+      const code = getFeatureCode(feature);
+      return Boolean(code && code === state.atlasSelectedCode);
+    })
+    .classed("named", (feature) => completedById.get(getFeatureCode(feature))?.correct === true)
+    .classed("revealed", (feature) => completedById.get(getFeatureCode(feature))?.correct === false);
+
+  const namedCount = state.guesses.filter((guess) => guess.correct).length;
+  const completedCount = state.guesses.length;
+  elements.atlasPosition.textContent = `${completedCount} / ${state.atlasQueue.length} complete`;
+  elements.atlasMapSelection.textContent = state.atlasSelectedCode
+    ? "Country selected · type its name"
+    : namedCount
+      ? `${namedCount} named · click or type another`
+      : "Click a country, then name it";
+  elements.giveUpButton.disabled = state.finished || !state.atlasSelectedCode;
+}
+
+function selectAtlasCountry(place) {
+  if (!place || state.finished) {
+    return;
+  }
+
+  const completed = state.guesses.find((guess) => guess.id === place.id);
+  if (completed) {
+    updateStatus(`${place.name} is already ${completed.correct ? "named" : "revealed"}. Choose another country.`);
+    return;
+  }
+
+  state.target = place;
+  state.atlasSelectedCode = place.code;
+  state.atlasAnswered = false;
+  elements.countryInput.value = "";
+  clearSuggestions();
+  updateAtlasCountryMapStyles();
+  updateStatus("Country selected. Type its name or choose it from autocomplete.");
+  elements.countryInput.focus();
+}
+
+function createAtlasProjection(featureCollection) {
+  if (!isAtlasCountrySet() || state.atlasSet === "world") {
+    return d3.geoNaturalEarth1().fitExtent([[28, 28], [972, 592]], featureCollection);
+  }
+
+  const regionalViews = {
+    africa: { center: [20, 2], scale: 390 },
+    asia: { center: [88, 36], scale: 285 },
+    europe: { center: [16, 53], scale: 590 },
+    "north-america": { center: [-105, 43], scale: 285 },
+    "south-america": { center: [-61, -18], scale: 370 },
+    oceania: { center: [150, -20], scale: 345 }
+  };
+  const view = regionalViews[state.atlasSet] || regionalViews.europe;
+
+  return d3.geoMercator()
+    .center(view.center)
+    .scale(view.scale)
+    .translate([500, 310]);
+}
+
+function activateAtlasFeature(event, feature) {
+  const place = getAtlasCountryPlaceByCode(getFeatureCode(feature));
+  if (!place) {
+    return;
+  }
+
+  event.stopPropagation();
+  selectAtlasCountry(place);
+}
+
+function renderAtlasCountryMap() {
+  if (!elements.atlasMap || !state.atlasFeatures.length || typeof d3 === "undefined") {
+    return;
+  }
+
+  const isCountryMap = isAtlasCountrySet();
+  const activeCodes = isCountryMap
+    ? new Set(state.atlasQueue.map((place) => place.code))
+    : getAtlasPhysicalTargetCodes(state.target);
+  const selectedFeatures = isCountryMap
+    ? state.atlasFeatures.filter((feature) => activeCodes.has(getFeatureCode(feature)))
+    : state.atlasFeatures;
+  const featureCollection = { type: "FeatureCollection", features: selectedFeatures };
+  const projection = createAtlasProjection(featureCollection);
+  const path = d3.geoPath(projection);
+  const svg = d3.select(elements.atlasMap);
+
+  if (state.atlasZoomFrame !== null) {
+    window.cancelAnimationFrame(state.atlasZoomFrame);
+    state.atlasZoomFrame = null;
+  }
+  state.atlasPendingTransform = null;
+  elements.atlasMap.classList.remove("is-interacting");
+  svg.selectAll("*").remove();
+
+  svg.append("rect")
+    .attr("class", "atlas-map-water")
+    .attr("width", 1000)
+    .attr("height", 620);
+
+  const mapLayer = svg.append("g").attr("class", "atlas-map-layer");
+  state.atlasMapLayer = mapLayer;
+
+  if (!isCountryMap && state.target?.kind === "waters") {
+    const marineFeatures = state.marineFeatureByName.get(normalize(state.target.name)) || [];
+    if (marineFeatures.length) {
+      mapLayer
+        .append("g")
+        .attr("class", "atlas-water-highlight-layer")
+        .selectAll("path")
+        .data(marineFeatures)
+        .join("path")
+        .attr("class", "atlas-water-highlight")
+        .attr("d", path);
+    } else if (state.target.coordinates) {
+      const [x, y] = projection(state.target.coordinates);
+      const [rx, ry, angle] = ATLAS_WATER_FALLBACK_AREAS.get(state.target.id) || [24, 16, 0];
+      mapLayer
+        .append("ellipse")
+        .attr("class", "atlas-water-highlight atlas-water-highlight-fallback")
+        .attr("cx", x)
+        .attr("cy", y)
+        .attr("rx", rx)
+        .attr("ry", ry)
+        .attr("transform", `rotate(${angle} ${x} ${y})`);
+    }
+  }
+
+  const orderedFeatures = [...state.atlasFeatures].sort((a, b) =>
+    Number(activeCodes.has(getFeatureCode(a))) - Number(activeCodes.has(getFeatureCode(b)))
+  );
+  const countryLayer = mapLayer.append("g").attr("class", "atlas-country-layer");
+
+  countryLayer
+    .selectAll("path")
+    .data(orderedFeatures)
+    .join("path")
+    .attr("d", path)
+    .attr("data-country-code", (feature) => getFeatureCode(feature) || "")
+    .attr("class", (feature) => {
+      const isActive = activeCodes.has(getFeatureCode(feature));
+      if (isCountryMap) {
+        return isActive ? "atlas-country" : "atlas-country outside-set";
+      }
+      return isActive ? "atlas-country atlas-physical-target" : "atlas-country atlas-physical-base";
+    })
+    .on("click", isCountryMap ? activateAtlasFeature : null);
+
+  const markerFeatures = isCountryMap
+    ? selectedFeatures.filter((feature) => path.area(feature) < 6)
+    : [];
+  const mapMarkers = countryLayer
+    .selectAll("circle")
+    .data(markerFeatures)
+    .join("circle")
+    .attr("class", "atlas-country-hit-marker")
+    .attr("data-country-code", (feature) => getFeatureCode(feature) || "")
+    .attr("cx", (feature) => path.centroid(feature)[0])
+    .attr("cy", (feature) => path.centroid(feature)[1])
+    .attr("r", 4.5)
+    .on("click", activateAtlasFeature);
+
+  const zoomBehavior = d3.zoom()
+    .scaleExtent([1, 10])
+    .extent([[0, 0], [1000, 620]])
+    .translateExtent([[-120, -90], [1120, 710]])
+    .on("start", () => {
+      elements.atlasMap.classList.add("is-interacting");
+    })
+    .on("zoom", (event) => {
+      state.atlasPendingTransform = event.transform;
+
+      if (state.atlasZoomFrame !== null) {
+        return;
+      }
+
+      state.atlasZoomFrame = window.requestAnimationFrame(() => {
+        const transform = state.atlasPendingTransform;
+        state.atlasZoomFrame = null;
+
+        if (!transform || state.atlasMapLayer !== mapLayer) {
+          return;
+        }
+
+        mapLayer.attr("transform", transform);
+        mapMarkers.attr("r", 4.5 / transform.k);
+      });
+    })
+    .on("end", () => {
+      elements.atlasMap.classList.remove("is-interacting");
+    });
+
+  state.atlasZoomBehavior = zoomBehavior;
+  svg.call(zoomBehavior);
+  svg.call(zoomBehavior.transform, d3.zoomIdentity);
+  if (isCountryMap) {
+    updateAtlasCountryMapStyles();
+  } else {
+    elements.atlasPosition.textContent = `${state.atlasIndex + 1} / ${state.atlasQueue.length}`;
+    elements.atlasMapSelection.textContent = "Name the highlighted area";
+    elements.giveUpButton.disabled = state.finished || state.atlasAnswered;
+  }
+}
+
+function adjustAtlasZoom(factor) {
+  if (!isAtlasCountrySet() || !state.atlasZoomBehavior) {
+    return;
+  }
+
+  d3.select(elements.atlasMap)
+    .transition()
+    .duration(180)
+    .call(state.atlasZoomBehavior.scaleBy, factor);
+}
+
+function resetAtlasZoom() {
+  if (!state.atlasZoomBehavior) {
+    return;
+  }
+
+  d3.select(elements.atlasMap)
+    .transition()
+    .duration(220)
+    .call(state.atlasZoomBehavior.transform, d3.zoomIdentity);
+}
+
 function rotateGlobeToCountry(code, animate = true) {
   const centroid = state.centroids.get(code);
 
@@ -791,31 +1482,61 @@ function rotateGlobeToCountry(code, animate = true) {
 function updateModeUI() {
   const isFlag = state.gameType === "flag";
   const isGlobe = state.gameType === "globe";
+  const isAtlas = state.gameType === "atlas";
   const isDaily = state.playMode === "daily";
   const isUnlimited = state.playMode === "unlimited";
+  const atlasSet = getAtlasSetDefinition();
+  const isAtlasCountryMap = isAtlas && atlasSet.kind === "countries";
 
   elements.flagGameButton.classList.toggle("active", isFlag);
   elements.globleGameButton.classList.toggle("active", isGlobe);
+  elements.atlasGameButton.classList.toggle("active", isAtlas);
   elements.dailyModeButton.classList.toggle("active", isDaily);
   elements.unlimitedModeButton.classList.toggle("active", isUnlimited);
+  elements.playModeSwitch.classList.toggle("is-hidden", isAtlas);
+  elements.atlasSetControl.classList.toggle("is-hidden", !isAtlas);
+  elements.atlasSetSelect.value = state.atlasSet;
 
-  elements.pageTitle.textContent = isGlobe
-    ? "Guess the country from the globe."
-    : "Guess the country from its flag.";
-  elements.roundTitle.textContent = isGlobe
-    ? isDaily ? "Daily globe mystery country" : "Unlimited globe practice"
-    : isDaily ? "Daily shared flag" : "Unlimited flag practice";
-  elements.guessesTitle.textContent = isGlobe ? "Proximity board" : "Guess board";
-  elements.newGameButton.textContent = isGlobe ? "New globe" : "New flag";
-  elements.newGameButton.classList.toggle("is-hidden", isDaily);
+  elements.pageTitle.textContent = isAtlas
+    ? isAtlasCountryMap ? "Name every country on the map." : "Name the highlighted area."
+    : isGlobe
+      ? "Guess the country from the globe."
+      : "Guess the country from its flag.";
+  elements.roundTitle.textContent = isAtlas
+    ? atlasSet.label
+    : isGlobe
+      ? isDaily ? "Daily globe mystery country" : "Unlimited globe practice"
+      : isDaily ? "Daily shared flag" : "Unlimited flag practice";
+  elements.guessesTitle.textContent = isAtlas ? "Set progress" : isGlobe ? "Proximity board" : "Guess board";
+  elements.newGameButton.textContent = isAtlas
+    ? isAtlasCountryMap ? "Restart map" : state.finished ? "Restart set" : "Next map"
+    : isGlobe ? "New globe" : "New flag";
+  elements.newGameButton.classList.toggle(
+    "is-hidden",
+    isAtlas ? isAtlasCountryMap ? !state.finished : !state.atlasAnswered && !state.finished : isDaily
+  );
+  elements.giveUpButton.textContent = isAtlas ? isAtlasCountryMap ? "Reveal selected" : "Reveal answer" : "Give up";
+  elements.guessButton.textContent = isAtlas ? isAtlasCountryMap ? "Name country" : "Check" : "Guess";
+  elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : "Country name";
+  elements.countryInput.placeholder = isAtlas
+    ? isAtlasCountryMap ? "Type a country..." : "Name the highlighted area..."
+    : "Start typing: United...";
+  elements.inputHint.innerHTML = isAtlas
+    ? isAtlasCountryMap
+      ? "Click any country or type directly. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through autocomplete."
+      : "Use autocomplete or type the highlighted area's full name, then press <kbd>Enter</kbd>."
+    : "Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to lock one in.";
   elements.gameCenter.classList.toggle("globle-layout", isGlobe);
-  elements.flagStage.classList.toggle("is-hidden", isGlobe);
+  elements.gameCenter.classList.toggle("atlas-layout", isAtlas);
+  elements.flagStage.classList.toggle("is-hidden", !isFlag);
   elements.globleStage.classList.toggle("is-hidden", !isGlobe);
+  elements.atlasStage.classList.toggle("is-hidden", !isAtlas);
 
-  elements.flagImage.classList.toggle("is-hidden", isGlobe);
-  elements.flagMask.classList.toggle("is-hidden", isGlobe);
+  elements.flagImage.classList.toggle("is-hidden", !isFlag);
+  elements.flagMask.classList.toggle("is-hidden", !isFlag);
   elements.globlePanel.classList.toggle("is-hidden", !isGlobe);
   elements.globlePanel.setAttribute("aria-hidden", String(!isGlobe));
+  elements.atlasStage.setAttribute("aria-hidden", String(!isAtlas));
 }
 
 function finishRound(message, tone) {
@@ -852,6 +1573,241 @@ function toRadians(value) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clearAtlasAdvanceTimer() {
+  if (state.atlasAdvanceTimer) {
+    window.clearTimeout(state.atlasAdvanceTimer);
+    state.atlasAdvanceTimer = null;
+  }
+}
+
+function showAtlasCountryBoard() {
+  state.target = null;
+  state.atlasSelectedCode = null;
+  state.atlasAnswered = false;
+  state.finished = false;
+  elements.atlasMapShell.classList.remove("is-hidden");
+  elements.atlasHeading.textContent = getAtlasMapHeading();
+  elements.countryInput.value = "";
+  clearSuggestions();
+  setRoundInteractivity(true);
+  updateModeUI();
+  updateStatus(`Name all ${state.atlasQueue.length} countries. Click a country to target it, or type any country in this set.`);
+  renderGuesses();
+  renderAtlasCountryMap();
+  elements.countryInput.focus();
+}
+
+function showAtlasTarget() {
+  state.target = state.atlasQueue[state.atlasIndex];
+  state.atlasAnswered = false;
+  state.finished = false;
+  state.atlasSelectedCode = null;
+  elements.atlasMapShell.classList.remove("is-hidden");
+  elements.atlasHeading.textContent = state.target.kind === "waters" ? "Oceans & seas map" : "Continents map";
+  elements.atlasPosition.textContent = `${state.atlasIndex + 1} / ${state.atlasQueue.length}`;
+  elements.countryInput.value = "";
+  clearSuggestions();
+  setRoundInteractivity(true);
+  updateModeUI();
+  updateStatus(`Map ${state.atlasIndex + 1} of ${state.atlasQueue.length}. Name the highlighted area.`);
+  renderGuesses();
+  renderAtlasCountryMap();
+  elements.countryInput.focus();
+}
+
+function startAtlasSession() {
+  clearAtlasAdvanceTimer();
+  const places = getAtlasPlacesForSet();
+
+  if (!places.length) {
+    updateStatus("This study set could not be loaded.", "failure");
+    setRoundInteractivity(false);
+    return;
+  }
+
+  state.atlasQueue = getAtlasSetDefinition().kind === "countries" ? places : shuffle(places);
+  state.atlasIndex = 0;
+  state.guesses = [];
+  state.atlasSelectedCode = null;
+
+  if (isAtlasCountrySet()) {
+    showAtlasCountryBoard();
+    return;
+  }
+
+  showAtlasTarget();
+}
+
+function completeAtlasSet() {
+  clearAtlasAdvanceTimer();
+  state.finished = true;
+  state.atlasAnswered = true;
+  state.atlasSelectedCode = null;
+  elements.countryInput.value = "";
+  setRoundInteractivity(false);
+  updateModeUI();
+  const namedCount = state.guesses.filter((guess) => guess.correct).length;
+  const revealedCount = state.guesses.length - namedCount;
+  updateStatus(
+    `Set complete: ${namedCount} named${revealedCount ? `, ${revealedCount} revealed` : ""}.`,
+    revealedCount ? "default" : "success"
+  );
+  renderGuesses();
+  updateAtlasCountryMapStyles();
+  launchConfetti();
+}
+
+function advanceAtlas() {
+  clearAtlasAdvanceTimer();
+  if (state.gameType !== "atlas" || state.finished || isAtlasCountrySet()) {
+    return;
+  }
+
+  if (state.atlasIndex >= state.atlasQueue.length - 1) {
+    completeAtlasSet();
+    return;
+  }
+
+  state.atlasIndex += 1;
+  showAtlasTarget();
+}
+
+function submitAtlasGuess(rawValue) {
+  if (isAtlasCountrySet()) {
+    submitAtlasCountryGuess(rawValue);
+    return;
+  }
+
+  if (state.atlasAnswered) {
+    return;
+  }
+
+  if (!normalize(rawValue)) {
+    updateStatus("Type the highlighted area's name first.", "failure");
+    return;
+  }
+
+  if (!isAtlasAnswer(state.target, rawValue)) {
+    updateStatus(`${rawValue.trim()} is not the highlighted area. Try again or reveal it.`, "failure");
+    return;
+  }
+
+  state.guesses.push({
+    name: state.target.name,
+    id: state.target.id,
+    number: state.atlasIndex + 1,
+    correct: true
+  });
+  state.atlasAnswered = true;
+  elements.countryInput.value = state.target.name;
+  setRoundInteractivity(false);
+  updateModeUI();
+  updateStatus(`Correct — ${state.target.name}.`, "success");
+  renderGuesses();
+  state.atlasAdvanceTimer = window.setTimeout(advanceAtlas, 1100);
+}
+
+function submitAtlasCountryGuess(rawValue) {
+  const country = findCountry(rawValue);
+
+  if (!country) {
+    updateStatus("Choose a valid country from autocomplete or keep typing.", "failure");
+    return;
+  }
+
+  const place = getAtlasCountryPlaceByCode(country.code);
+  if (!place) {
+    const setName = getAtlasMapHeading().replace(/ map$/i, "");
+    updateStatus(`${country.name} is not part of the ${setName} set. Try another country.`, "failure");
+    return;
+  }
+
+  const completed = state.guesses.find((guess) => guess.id === place.id);
+  if (completed) {
+    updateStatus(`${place.name} is already ${completed.correct ? "named" : "revealed"}. Choose another country.`, "failure");
+    return;
+  }
+
+  if (state.atlasSelectedCode && place.code !== state.atlasSelectedCode) {
+    updateStatus(`${place.name} is not the selected country. Try again or select a different area.`, "failure");
+    return;
+  }
+
+  state.guesses.push({
+    name: place.name,
+    id: place.id,
+    code: place.code,
+    number: state.guesses.length + 1,
+    correct: true
+  });
+  state.target = null;
+  state.atlasSelectedCode = null;
+  elements.countryInput.value = "";
+  clearSuggestions();
+  renderGuesses();
+  updateAtlasCountryMapStyles();
+
+  if (state.guesses.length >= state.atlasQueue.length) {
+    completeAtlasSet();
+    return;
+  }
+
+  updateStatus(`Correct — ${place.name}. Keep going.`, "success");
+  elements.countryInput.focus();
+}
+
+function revealAtlasAnswer() {
+  if (isAtlasCountrySet()) {
+    revealAtlasCountry();
+    return;
+  }
+
+  clearAtlasAdvanceTimer();
+  state.guesses.push({
+    name: state.target.name,
+    id: state.target.id,
+    number: state.atlasIndex + 1,
+    correct: false
+  });
+  state.atlasAnswered = true;
+  elements.countryInput.value = state.target.name;
+  setRoundInteractivity(false);
+  updateModeUI();
+  updateStatus(`The highlighted area is ${state.target.name}.`, "default");
+  renderGuesses();
+  elements.newGameButton.focus();
+}
+
+function revealAtlasCountry() {
+  const place = state.atlasSelectedCode ? getAtlasCountryPlaceByCode(state.atlasSelectedCode) : null;
+  if (!place) {
+    updateStatus("Click a country on the map before revealing it.", "failure");
+    return;
+  }
+
+  state.guesses.push({
+    name: place.name,
+    id: place.id,
+    code: place.code,
+    number: state.guesses.length + 1,
+    correct: false
+  });
+  state.target = null;
+  state.atlasSelectedCode = null;
+  elements.countryInput.value = "";
+  clearSuggestions();
+  renderGuesses();
+  updateAtlasCountryMapStyles();
+
+  if (state.guesses.length >= state.atlasQueue.length) {
+    completeAtlasSet();
+    return;
+  }
+
+  updateStatus(`That country is ${place.name}. Choose another area when you're ready.`);
+  elements.countryInput.focus();
 }
 
 function submitFlagGuess(country) {
@@ -928,6 +1884,11 @@ function submitGuess(rawValue) {
     return;
   }
 
+  if (state.gameType === "atlas") {
+    submitAtlasGuess(rawValue);
+    return;
+  }
+
   const country = findCountry(rawValue);
 
   if (!country) {
@@ -952,6 +1913,11 @@ function submitGuess(rawValue) {
 function giveUp() {
   if (state.finished) {
     updateStatus("The round is already over. Start a new round when you're ready.");
+    return;
+  }
+
+  if (state.gameType === "atlas") {
+    revealAtlasAnswer();
     return;
   }
 
@@ -1047,14 +2013,22 @@ function getTargetCountryForSelection() {
 }
 
 function startGame() {
+  clearAtlasAdvanceTimer();
+  if (state.gameType === "atlas") {
+    startAtlasSession();
+    return;
+  }
+
   const nextTarget = getTargetCountryForSelection();
   state.target = nextTarget || pickRandomCountry();
   state.guesses = [];
   state.filteredSuggestions = [];
   state.highlightedIndex = -1;
   state.finished = false;
-  state.revealedTiles = state.gameType === "flag" ? 1 : 0;
-  state.revealOrder = shuffle(Array.from({ length: TOTAL_TILES }, (_, index) => index));
+  state.revealedTiles = 0;
+  state.revealOrder = state.gameType === "flag"
+    ? [1, 4, ...shuffle([0, 2, 3, 5])]
+    : shuffle(Array.from({ length: TOTAL_TILES }, (_, index) => index));
 
   if (state.gameType === "globe") {
     state.globeRotation = [-20, -18, 0];
@@ -1102,7 +2076,7 @@ function setSelection(partial) {
     return;
   }
 
-  if (nextPlayMode === "daily") {
+  if (nextGameType !== "atlas" && nextPlayMode === "daily") {
     const track = nextGameType === "globe" ? "globe" : "flag";
     if (!getScheduleForTrack(track)?.entries?.length) {
       return;
@@ -1115,6 +2089,7 @@ function setSelection(partial) {
 
   state.gameType = nextGameType;
   state.playMode = nextPlayMode;
+  clearAtlasAdvanceTimer();
   saveSelection();
   startGame();
 }
@@ -1217,6 +2192,10 @@ elements.globleGameButton.addEventListener("click", () => {
   setSelection({ gameType: "globe" });
 });
 
+elements.atlasGameButton.addEventListener("click", () => {
+  setSelection({ gameType: "atlas" });
+});
+
 elements.dailyModeButton.addEventListener("click", () => {
   setSelection({ playMode: "daily" });
 });
@@ -1225,7 +2204,32 @@ elements.unlimitedModeButton.addEventListener("click", () => {
   setSelection({ playMode: "unlimited" });
 });
 
-elements.newGameButton.addEventListener("click", startGame);
+elements.atlasSetSelect.addEventListener("change", (event) => {
+  const nextSet = event.target.value;
+  if (!ATLAS_SET_IDS.has(nextSet) || nextSet === state.atlasSet) {
+    return;
+  }
+
+  state.atlasSet = nextSet;
+  saveSelection();
+  startAtlasSession();
+});
+
+elements.newGameButton.addEventListener("click", () => {
+  if (state.gameType !== "atlas") {
+    startGame();
+    return;
+  }
+
+  if (state.finished) {
+    startAtlasSession();
+    return;
+  }
+
+  if (state.atlasAnswered) {
+    advanceAtlas();
+  }
+});
 elements.giveUpButton.addEventListener("click", giveUp);
 elements.themeToggle.addEventListener("click", toggleTheme);
 elements.flagImage.addEventListener("load", updateFlagFrameAspectRatio);
@@ -1236,6 +2240,9 @@ elements.globeCanvas.addEventListener("pointercancel", endGlobeDrag);
 elements.globeCanvas.addEventListener("wheel", handleGlobeWheelZoom, { passive: false });
 elements.globeZoomInButton.addEventListener("click", () => adjustGlobeZoom(GLOBE_ZOOM_BUTTON_STEP));
 elements.globeZoomOutButton.addEventListener("click", () => adjustGlobeZoom(-GLOBE_ZOOM_BUTTON_STEP));
+elements.atlasZoomInButton.addEventListener("click", () => adjustAtlasZoom(1.45));
+elements.atlasZoomOutButton.addEventListener("click", () => adjustAtlasZoom(1 / 1.45));
+elements.atlasZoomResetButton.addEventListener("click", resetAtlasZoom);
 
 window.addEventListener("resize", () => {
   resizeConfettiCanvas();
@@ -1244,6 +2251,8 @@ window.addEventListener("resize", () => {
 
 async function init() {
   applyTheme(getSavedTheme());
+  initPalette();
+  initSettingsModal();
   resizeConfettiCanvas();
 
   try {
@@ -1264,11 +2273,25 @@ async function init() {
     elements.globleGameButton.disabled = true;
   }
 
+  try {
+    await loadMarineAreas();
+  } catch (error) {
+    console.warn(error);
+  }
+
+  try {
+    await loadAtlasCountries();
+  } catch (error) {
+    console.error(error);
+    elements.atlasGameButton.disabled = true;
+  }
+
   const savedSelection = getSavedSelection();
   state.gameType = savedSelection.gameType;
   state.playMode = savedSelection.playMode;
+  state.atlasSet = savedSelection.atlasSet;
 
-  if (state.playMode === "daily") {
+  if (state.gameType !== "atlas" && state.playMode === "daily") {
     const track = state.gameType === "globe" ? "globe" : "flag";
     if (!getScheduleForTrack(track)?.entries?.length) {
       state.playMode = "unlimited";
@@ -1276,6 +2299,10 @@ async function init() {
   }
 
   if (state.gameType === "globe" && (!state.centroids.size || !state.globeFeatures.length)) {
+    state.gameType = "flag";
+  }
+
+  if (state.gameType === "atlas" && !state.atlasCountries.length) {
     state.gameType = "flag";
   }
 
