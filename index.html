@@ -142,16 +142,15 @@
                 id="country-input"
                 name="country"
                 type="text"
-                placeholder="Start typing: United..."
+                placeholder="Type the full country name..."
                 spellcheck="false"
-                aria-autocomplete="list"
-                aria-controls="suggestions"
+                aria-controls="spelling-suggestion"
                 aria-expanded="false"
               >
               <button id="guess-button" class="primary-button" type="submit">Guess</button>
             </div>
-            <p id="input-hint" class="input-hint">Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to lock one in.</p>
-            <ul id="suggestions" class="suggestions" role="listbox" aria-label="Country suggestions"></ul>
+            <p id="input-hint" class="input-hint">Enter a full country name. Spelling help appears only after an unrecognized answer.</p>
+            <div id="spelling-suggestion" class="spelling-suggestion" role="status" aria-live="polite"></div>
           </form>
 
           <div class="section-heading board-heading">

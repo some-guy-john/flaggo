@@ -28,62 +28,70 @@ const ATLAS_SETS = [
   { id: "continents", label: "The seven continents", kind: "continents" }
 ];
 const ATLAS_SET_IDS = new Set(ATLAS_SETS.map((set) => set.id));
+const COUNTRY_REGION_BY_CODE = new Map([
+  ["africa", "ao bf bi bj bw cd cf cg ci cm cv dj dz eg er et ga gh gm gn gq gw ke km lr ls ly ma mg ml mr mu mw mz na ne ng rw sc sd sl sn so ss st sz td tg tn tz ug za zm zw"],
+  ["asia", "ae af am az bd bh bn bt cn ge id il in iq ir jo jp kg kh kp kr kw kz la lb lk mm mn mv my np om ph pk ps qa sa sg sy th tj tl tm tr uz vn ye"],
+  ["europe", "ad al at ba be bg by ch cy cz de dk ee es fi fr gb gr hr hu ie is it li lt lu lv mc md me mk mt nl no pl pt ro rs ru se si sk sm ua va"],
+  ["north-america", "ag bb bs bz ca cr cu dm do gd gt hn ht jm kn lc mx ni pa sv tt us vc"],
+  ["oceania", "au fj fm ki mh nr nz pg pw sb to tv vu ws"],
+  ["south-america", "ar bo br cl co ec gy pe py sr uy ve"]
+].flatMap(([region, codes]) => codes.split(" ").map((code) => [code, region])));
 const ATLAS_PHYSICAL_PLACES = [
-  { id: "gulf_of_mexico", name: "Gulf of Mexico", kind: "waters", aliases: [], map: "ug-map-gulf_of_mexico.png" },
-  { id: "philippine_sea", name: "Philippine Sea", kind: "waters", aliases: [], map: "ug-map-philippine_sea.png" },
-  { id: "southern_ocean", name: "Southern Ocean", kind: "waters", aliases: ["antarctic ocean"], map: "ug-map-southern_ocean-nobox.png" },
-  { id: "gulf_of_thailand", name: "Gulf of Thailand", kind: "waters", aliases: [], map: "ug-map-gulf_of_thailand.png" },
-  { id: "pacific_ocean", name: "Pacific Ocean", kind: "waters", aliases: [], map: "ug-map-pacific_ocean-nobox.png" },
-  { id: "atlantic_ocean", name: "Atlantic Ocean", kind: "waters", aliases: [], map: "ug-map-atlantic_ocean-nobox.png" },
-  { id: "indian_ocean", name: "Indian Ocean", kind: "waters", aliases: [], map: "ug-map-indian_ocean-nobox.png" },
-  { id: "arctic_ocean", name: "Arctic Ocean", kind: "waters", aliases: [], map: "ug-map-arctic_ocean-nobox.png" },
-  { id: "hudson_bay", name: "Hudson Bay", kind: "waters", aliases: [], map: "ug-map-hudson_bay.png" },
-  { id: "labrador_sea", name: "Labrador Sea", kind: "waters", aliases: [], map: "ug-map-labrador_sea.png" },
-  { id: "white_sea", name: "White Sea", kind: "waters", aliases: [], map: "ug-map-white_sea.png" },
-  { id: "denmark_strait", name: "Denmark Strait", kind: "waters", aliases: [], map: "ug-map-denmark_strait.png" },
-  { id: "norwegian_sea", name: "Norwegian Sea", kind: "waters", aliases: [], map: "ug-map-norwegian_sea.png" },
-  { id: "baltic_sea", name: "Baltic Sea", kind: "waters", aliases: [], map: "ug-map-baltic_sea.png" },
-  { id: "celtic_sea", name: "Celtic Sea", kind: "waters", aliases: [], map: "ug-map-celtic_sea.png" },
-  { id: "english_channel", name: "English Channel", kind: "waters", aliases: ["la manche"], map: "ug-map-english_channel.png" },
-  { id: "adriatic_sea", name: "Adriatic Sea", kind: "waters", aliases: [], map: "ug-map-adriatic_sea.png" },
-  { id: "bay_of_biscay", name: "Bay of Biscay", kind: "waters", aliases: [], map: "ug-map-bay_of_biscay.png" },
-  { id: "black_sea", name: "Black Sea", kind: "waters", aliases: [], map: "ug-map-black_sea.png" },
-  { id: "aegean_sea", name: "Aegean Sea", kind: "waters", aliases: [], map: "ug-map-aegean_sea.png" },
-  { id: "caspian_sea", name: "Caspian Sea", kind: "waters", aliases: [], map: "ug-map-caspian_sea.png" },
-  { id: "mediterranean_sea", name: "Mediterranean Sea", kind: "waters", aliases: [], map: "ug-map-mediterranean_sea.png" },
-  { id: "east_siberian_sea", name: "East Siberian Sea", kind: "waters", aliases: [], map: "ug-map-east_siberian_sea.png" },
-  { id: "bering_strait", name: "Bering Strait", kind: "waters", aliases: [], map: "ug-map-bering_strait.png" },
-  { id: "arabian_sea", name: "Arabian Sea", kind: "waters", aliases: [], map: "ug-map-arabian_sea.png" },
-  { id: "red_sea", name: "Red Sea", kind: "waters", aliases: [], map: "ug-map-red_sea.png" },
-  { id: "dead_sea", name: "Dead Sea", kind: "waters", aliases: [], map: "ug-map-dead_sea.png" },
-  { id: "bay_of_bengal", name: "Bay of Bengal", kind: "waters", aliases: [], map: "ug-map-bay_of_bengal.png" },
-  { id: "sea_of_japan", name: "Sea of Japan", kind: "waters", aliases: ["east sea"], map: "ug-map-sea_of_japan.png" },
-  { id: "yellow_sea", name: "Yellow Sea", kind: "waters", aliases: [], map: "ug-map-yellow_sea.png" },
-  { id: "coral_sea", name: "Coral Sea", kind: "waters", aliases: [], map: "ug-map-coral_sea.png" },
-  { id: "south_china_sea", name: "South China Sea", kind: "waters", aliases: [], map: "ug-map-south_china_sea.png" },
-  { id: "tasman_sea", name: "Tasman Sea", kind: "waters", aliases: [], map: "ug-map-tasman_sea.png" },
-  { id: "gulf_of_carpentaria", name: "Gulf of Carpentaria", kind: "waters", aliases: [], map: "ug-map-gulf_of_carpentaria.png" },
-  { id: "aral_sea", name: "Aral Sea", kind: "waters", aliases: [], map: "ug-map-aral_sea.png" },
-  { id: "persian_gulf", name: "Persian Gulf", kind: "waters", aliases: ["arabian gulf"], map: "ug-map-persian_gulf.png" },
-  { id: "caribbean_sea", name: "Caribbean Sea", kind: "waters", aliases: [], map: "ug-map-caribbean_sea.png" },
-  { id: "gulf_of_california", name: "Gulf of California", kind: "waters", aliases: ["sea of cortez", "sea of cortés"], map: "ug-map-gulf_of_california.png" },
-  { id: "sea_of_galilee", name: "Sea of Galilee", kind: "waters", aliases: ["lake tiberias", "lake kinneret"], map: "ug-map-sea_of_galilee.png" },
-  { id: "banda_sea", name: "Banda Sea", kind: "waters", aliases: [], map: "ug-map-banda_sea.png" },
-  { id: "barents_sea", name: "Barents Sea", kind: "waters", aliases: [], map: "ug-map-barents_sea.png" },
-  { id: "celebes_sea", name: "Celebes Sea", kind: "waters", aliases: ["sulawesi sea"], map: "ug-map-celebes_sea.png" },
-  { id: "east_china_sea", name: "East China Sea", kind: "waters", aliases: [], map: "ug-map-east_china_sea.png" },
-  { id: "gulf_of_alaska", name: "Gulf of Alaska", kind: "waters", aliases: [], map: "ug-map-gulf_of_alaska.png" },
-  { id: "gulf_of_guinea", name: "Gulf of Guinea", kind: "waters", aliases: [], map: "ug-map-gulf_of_guinea.png" },
-  { id: "north_sea", name: "North Sea", kind: "waters", aliases: [], map: "ug-map-north_sea.png" },
-  { id: "sea_of_okhotsk", name: "Sea of Okhotsk", kind: "waters", aliases: [], map: "ug-map-sea_of_okhotsk.png" },
-  { id: "timor_sea", name: "Timor Sea", kind: "waters", aliases: [], map: "ug-map-timor_sea.png" },
-  { id: "europe", name: "Europe", kind: "continents", aliases: [], map: "ug-map-europe-nobox.png" },
-  { id: "north_america", name: "North America", kind: "continents", aliases: [], map: "ug-map-north_america-nobox.png" },
-  { id: "south_america", name: "South America", kind: "continents", aliases: [], map: "ug-map-south_america-nobox.png" },
-  { id: "asia", name: "Asia", kind: "continents", aliases: [], map: "ug-map-asia-nobox.png" },
-  { id: "africa", name: "Africa", kind: "continents", aliases: [], map: "ug-map-africa-nobox.png" },
-  { id: "oceania", name: "Oceania", kind: "continents", aliases: [], map: "ug-map-oceania-nobox.png" },
-  { id: "antarctica", name: "Antarctica", kind: "continents", aliases: [], map: "ug-map-antarctica-nobox.png" }
+  { id: "gulf_of_mexico", name: "Gulf of Mexico", kind: "waters", aliases: [] },
+  { id: "philippine_sea", name: "Philippine Sea", kind: "waters", aliases: [] },
+  { id: "southern_ocean", name: "Southern Ocean", kind: "waters", aliases: ["antarctic ocean"] },
+  { id: "gulf_of_thailand", name: "Gulf of Thailand", kind: "waters", aliases: [] },
+  { id: "pacific_ocean", name: "Pacific Ocean", kind: "waters", aliases: [] },
+  { id: "atlantic_ocean", name: "Atlantic Ocean", kind: "waters", aliases: [] },
+  { id: "indian_ocean", name: "Indian Ocean", kind: "waters", aliases: [] },
+  { id: "arctic_ocean", name: "Arctic Ocean", kind: "waters", aliases: [] },
+  { id: "hudson_bay", name: "Hudson Bay", kind: "waters", aliases: [] },
+  { id: "labrador_sea", name: "Labrador Sea", kind: "waters", aliases: [] },
+  { id: "white_sea", name: "White Sea", kind: "waters", aliases: [] },
+  { id: "denmark_strait", name: "Denmark Strait", kind: "waters", aliases: [] },
+  { id: "norwegian_sea", name: "Norwegian Sea", kind: "waters", aliases: [] },
+  { id: "baltic_sea", name: "Baltic Sea", kind: "waters", aliases: [] },
+  { id: "celtic_sea", name: "Celtic Sea", kind: "waters", aliases: [] },
+  { id: "english_channel", name: "English Channel", kind: "waters", aliases: ["la manche"] },
+  { id: "adriatic_sea", name: "Adriatic Sea", kind: "waters", aliases: [] },
+  { id: "bay_of_biscay", name: "Bay of Biscay", kind: "waters", aliases: [] },
+  { id: "black_sea", name: "Black Sea", kind: "waters", aliases: [] },
+  { id: "aegean_sea", name: "Aegean Sea", kind: "waters", aliases: [] },
+  { id: "caspian_sea", name: "Caspian Sea", kind: "waters", aliases: [] },
+  { id: "mediterranean_sea", name: "Mediterranean Sea", kind: "waters", aliases: [] },
+  { id: "east_siberian_sea", name: "East Siberian Sea", kind: "waters", aliases: [] },
+  { id: "bering_strait", name: "Bering Strait", kind: "waters", aliases: [] },
+  { id: "arabian_sea", name: "Arabian Sea", kind: "waters", aliases: [] },
+  { id: "red_sea", name: "Red Sea", kind: "waters", aliases: [] },
+  { id: "dead_sea", name: "Dead Sea", kind: "waters", aliases: [] },
+  { id: "bay_of_bengal", name: "Bay of Bengal", kind: "waters", aliases: [] },
+  { id: "sea_of_japan", name: "Sea of Japan", kind: "waters", aliases: ["east sea"] },
+  { id: "yellow_sea", name: "Yellow Sea", kind: "waters", aliases: [] },
+  { id: "coral_sea", name: "Coral Sea", kind: "waters", aliases: [] },
+  { id: "south_china_sea", name: "South China Sea", kind: "waters", aliases: [] },
+  { id: "tasman_sea", name: "Tasman Sea", kind: "waters", aliases: [] },
+  { id: "gulf_of_carpentaria", name: "Gulf of Carpentaria", kind: "waters", aliases: [] },
+  { id: "aral_sea", name: "Aral Sea", kind: "waters", aliases: [] },
+  { id: "persian_gulf", name: "Persian Gulf", kind: "waters", aliases: ["arabian gulf"] },
+  { id: "caribbean_sea", name: "Caribbean Sea", kind: "waters", aliases: [] },
+  { id: "gulf_of_california", name: "Gulf of California", kind: "waters", aliases: ["sea of cortez", "sea of cortés"] },
+  { id: "sea_of_galilee", name: "Sea of Galilee", kind: "waters", aliases: ["lake tiberias", "lake kinneret"] },
+  { id: "banda_sea", name: "Banda Sea", kind: "waters", aliases: [] },
+  { id: "barents_sea", name: "Barents Sea", kind: "waters", aliases: [] },
+  { id: "celebes_sea", name: "Celebes Sea", kind: "waters", aliases: ["sulawesi sea"] },
+  { id: "east_china_sea", name: "East China Sea", kind: "waters", aliases: [] },
+  { id: "gulf_of_alaska", name: "Gulf of Alaska", kind: "waters", aliases: [] },
+  { id: "gulf_of_guinea", name: "Gulf of Guinea", kind: "waters", aliases: [] },
+  { id: "north_sea", name: "North Sea", kind: "waters", aliases: [] },
+  { id: "sea_of_okhotsk", name: "Sea of Okhotsk", kind: "waters", aliases: [] },
+  { id: "timor_sea", name: "Timor Sea", kind: "waters", aliases: [] },
+  { id: "europe", name: "Europe", kind: "continents", aliases: [] },
+  { id: "north_america", name: "North America", kind: "continents", aliases: [] },
+  { id: "south_america", name: "South America", kind: "continents", aliases: [] },
+  { id: "asia", name: "Asia", kind: "continents", aliases: [] },
+  { id: "africa", name: "Africa", kind: "continents", aliases: [] },
+  { id: "oceania", name: "Oceania", kind: "continents", aliases: [] },
+  { id: "antarctica", name: "Antarctica", kind: "continents", aliases: [] }
 ];
 const ATLAS_PHYSICAL_COORDINATES = new Map([
   ["gulf_of_mexico", [-90, 24]],
@@ -146,8 +154,7 @@ const ATLAS_WATER_FALLBACK_AREAS = new Map([
 const state = {
   target: null,
   guesses: [],
-  filteredSuggestions: [],
-  highlightedIndex: -1,
+  suggestedCorrection: null,
   finished: false,
   revealOrder: [],
   revealedTiles: 0,
@@ -162,7 +169,6 @@ const state = {
   atlasFeatures: [],
   marineFeatureByName: new Map(),
   globeFeatures: [],
-  globeFeatureByCode: new Map(),
   globeRotation: [-20, -18, 0],
   globeZoom: 1,
   globeDragStart: null,
@@ -209,7 +215,6 @@ const elements = {
   flagStage: document.querySelector("#flag-stage"),
   flagFrame: document.querySelector("#flag-stage .flag-frame"),
   globleStage: document.querySelector("#globle-stage"),
-  gameSidebar: document.querySelector("#game-sidebar"),
   flagImage: document.querySelector("#flag-image"),
   flagMask: document.querySelector("#flag-mask"),
   globlePanel: document.querySelector("#globle-panel"),
@@ -224,7 +229,7 @@ const elements = {
   countryInput: document.querySelector("#country-input"),
   guessButton: document.querySelector("#guess-button"),
   inputHint: document.querySelector("#input-hint"),
-  suggestions: document.querySelector("#suggestions"),
+  spellingSuggestion: document.querySelector("#spelling-suggestion"),
   guessList: document.querySelector("#guess-list"),
   guessesTitle: document.querySelector("#guesses-title"),
   historyCount: document.querySelector("#history-count"),
@@ -465,25 +470,12 @@ async function loadCentroids() {
   state.centroids = new Map((payload.entries || []).map((entry) => [entry.code, entry]));
 }
 
-async function loadAtlasCountries() {
-  const response = await fetch("./data/countries-master.json");
-
-  if (!response.ok) {
-    throw new Error(`Failed to load atlas country groups: ${response.status}`);
-  }
-
-  const records = await response.json();
-  const recordByCode = new Map(records.map((record) => [record.cca2?.toLowerCase(), record]));
-
+function loadAtlasCountries() {
   state.atlasCountries = countries.map((country) => {
-    const record = recordByCode.get(country.code);
-    if (!record) {
-      throw new Error(`Atlas region is missing for ${country.name}.`);
-    }
+    const region = COUNTRY_REGION_BY_CODE.get(country.code);
 
-    let region = record.region.toLowerCase();
-    if (record.region === "Americas") {
-      region = record.subregion === "South America" ? "south-america" : "north-america";
+    if (!region) {
+      throw new Error(`Atlas region is missing for ${country.name}.`);
     }
 
     return {
@@ -518,11 +510,6 @@ async function loadWorldMap() {
     .map((feature) => simplifyFeature(feature, 0.2))
     .map(normalizeMapFeatureWinding)
     .filter((feature) => feature.geometry.coordinates.length);
-  state.globeFeatureByCode = new Map(
-    state.globeFeatures
-      .map((feature) => [getFeatureCode(feature), feature])
-      .filter(([code]) => Boolean(code))
-  );
 }
 
 async function loadMarineAreas() {
@@ -703,53 +690,67 @@ function findCountry(query) {
   });
 }
 
-function getSuggestions(query) {
-  const normalizedQuery = normalize(query);
+function getInputCandidates() {
+  return state.gameType === "atlas" ? getAtlasPlacesForSet() : countries;
+}
 
-  if (!normalizedQuery || state.finished) {
-    return [];
+function getEditDistance(left, right) {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + substitutionCost
+      );
+    }
+
+    previous.splice(0, previous.length, ...current);
   }
 
-  const candidates = state.gameType === "atlas"
-    ? isAtlasCountrySet() ? countries : getAtlasPlacesForSet()
-    : countries;
+  return previous[right.length];
+}
+
+function getSpellingCorrection(query) {
+  const normalizedQuery = normalize(query).replace(/[\s-]/g, "");
+
+  if (normalizedQuery.length < 4 || state.finished) {
+    return null;
+  }
+
+  const candidates = getInputCandidates();
+  const exactMatch = candidates.some((place) =>
+    [place.name, ...(place.aliases || [])]
+      .map((answer) => normalize(answer).replace(/[\s-]/g, ""))
+      .includes(normalizedQuery)
+  );
+
+  if (exactMatch) {
+    return null;
+  }
+
+  const maximumDistance = Math.min(3, Math.max(1, Math.ceil(normalizedQuery.length * 0.2)));
   const ranked = candidates
     .map((place) => {
-      const primaryName = normalize(place.name);
-      const normalizedAliases = (place.aliases || []).map((alias) => normalize(alias));
-      const primaryStarts = primaryName.startsWith(normalizedQuery);
-      const aliasStarts = normalizedAliases.some((alias) => alias.startsWith(normalizedQuery));
-      const primaryIncludes = primaryName.includes(normalizedQuery);
-      const aliasIncludes = normalizedAliases.some((alias) => alias.includes(normalizedQuery));
-
-      let score = 0;
-      if (primaryStarts) {
-        score = 4;
-      } else if (aliasStarts) {
-        score = 3;
-      } else if (primaryIncludes) {
-        score = 2;
-      } else if (aliasIncludes) {
-        score = 1;
-      }
-
-      return { place, score };
+      const distance = Math.min(
+        ...[place.name, ...(place.aliases || [])].map((answer) =>
+          getEditDistance(normalizedQuery, normalize(answer).replace(/[\s-]/g, ""))
+        )
+      );
+      return { place, distance };
     })
-    .filter((entry) => entry.score > 0);
+    .filter((entry) => entry.distance <= maximumDistance)
+    .sort((a, b) => a.distance - b.distance || a.place.name.localeCompare(b.place.name));
 
-  const hasStrongPrefixMatches = ranked.some((entry) => entry.score >= 3);
+  if (!ranked.length || (ranked[1] && ranked[1].distance === ranked[0].distance)) {
+    return null;
+  }
 
-  return ranked
-    .filter((entry) => !hasStrongPrefixMatches || entry.score >= 3)
-    .sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-
-      return a.place.name.localeCompare(b.place.name);
-    })
-    .slice(0, 8)
-    .map((entry) => entry.place);
+  return ranked[0].place;
 }
 
 function getAtlasSetDefinition() {
@@ -779,41 +780,32 @@ function isAtlasAnswer(place, query) {
   return [place.name, ...(place.aliases || [])].some((answer) => normalize(answer) === normalizedQuery);
 }
 
-function renderSuggestions() {
-  elements.suggestions.innerHTML = "";
+function renderSpellingCorrection() {
+  elements.spellingSuggestion.innerHTML = "";
 
-  if (!state.filteredSuggestions.length || state.finished) {
-    elements.suggestions.classList.remove("visible");
+  if (!state.suggestedCorrection || state.finished) {
+    elements.spellingSuggestion.classList.remove("visible");
     elements.countryInput.setAttribute("aria-expanded", "false");
-    elements.countryInput.removeAttribute("aria-activedescendant");
     return;
   }
 
-  state.filteredSuggestions.forEach((country, index) => {
-    const item = document.createElement("li");
-    item.className = "suggestion-item";
-    item.textContent = country.name;
-    item.setAttribute("role", "option");
-    item.setAttribute("id", `suggestion-${country.code || country.id}`);
+  const correction = state.suggestedCorrection;
+  const button = document.createElement("button");
+  const prompt = document.createElement("span");
+  const name = document.createElement("strong");
 
-    if (index === state.highlightedIndex) {
-      item.classList.add("active");
-      elements.countryInput.setAttribute("aria-activedescendant", item.id);
-    }
-
-    item.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      selectSuggestion(country);
-    });
-
-    elements.suggestions.appendChild(item);
+  button.type = "button";
+  button.className = "spelling-suggestion-button";
+  prompt.textContent = "Did you mean";
+  name.textContent = `${correction.name}?`;
+  button.append(prompt, name);
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
   });
+  button.addEventListener("click", () => acceptSpellingCorrection(correction));
 
-  if (state.highlightedIndex === -1) {
-    elements.countryInput.removeAttribute("aria-activedescendant");
-  }
-
-  elements.suggestions.classList.add("visible");
+  elements.spellingSuggestion.appendChild(button);
+  elements.spellingSuggestion.classList.add("visible");
   elements.countryInput.setAttribute("aria-expanded", "true");
 }
 
@@ -867,7 +859,7 @@ function renderGuesses() {
         <span class="guess-label">Set ready</span>
         <span class="guess-result">${isAtlasCountrySet()
           ? "Click a country or type its name. Use the map until every country is complete."
-          : "Name the highlighted area. Use autocomplete or reveal the answer."}</span>
+          : "Name the highlighted area or reveal the answer if you're stuck."}</span>
       `;
       elements.guessList.appendChild(emptyItem);
       return;
@@ -952,26 +944,9 @@ function updateStatus(message, tone = "default") {
     tone === "failure" ? "var(--danger)" : tone === "success" ? "var(--success)" : "var(--muted)";
 }
 
-function clearSuggestions() {
-  state.filteredSuggestions = [];
-  state.highlightedIndex = -1;
-  renderSuggestions();
-}
-
-function stepSuggestionHighlight(direction) {
-  if (!state.filteredSuggestions.length) {
-    return;
-  }
-
-  if (state.highlightedIndex < 0) {
-    state.highlightedIndex = direction > 0 ? 0 : state.filteredSuggestions.length - 1;
-  } else {
-    state.highlightedIndex =
-      (state.highlightedIndex + direction + state.filteredSuggestions.length) %
-      state.filteredSuggestions.length;
-  }
-
-  renderSuggestions();
+function clearSpellingCorrection() {
+  state.suggestedCorrection = null;
+  renderSpellingCorrection();
 }
 
 function setRoundInteractivity(enabled) {
@@ -980,10 +955,21 @@ function setRoundInteractivity(enabled) {
   elements.giveUpButton.disabled = !enabled;
 }
 
-function selectSuggestion(country) {
-  elements.countryInput.value = country.name;
-  clearSuggestions();
+function acceptSpellingCorrection(place) {
+  elements.countryInput.value = place.name;
+  clearSpellingCorrection();
   elements.countryInput.focus();
+}
+
+function offerSpellingCorrection(query, fallbackMessage) {
+  state.suggestedCorrection = getSpellingCorrection(query);
+  renderSpellingCorrection();
+  updateStatus(
+    state.suggestedCorrection
+      ? "That name wasn’t recognized. Check the spelling suggestion below."
+      : fallbackMessage,
+    "failure"
+  );
 }
 
 function updateFlagFrameAspectRatio() {
@@ -1240,9 +1226,9 @@ function selectAtlasCountry(place) {
   state.atlasSelectedCode = place.code;
   state.atlasAnswered = false;
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   updateAtlasCountryMapStyles();
-  updateStatus("Country selected. Type its name or choose it from autocomplete.");
+  updateStatus("Country selected. Type its full name.");
   elements.countryInput.focus();
 }
 
@@ -1519,13 +1505,13 @@ function updateModeUI() {
   elements.guessButton.textContent = isAtlas ? isAtlasCountryMap ? "Name country" : "Check" : "Guess";
   elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : "Country name";
   elements.countryInput.placeholder = isAtlas
-    ? isAtlasCountryMap ? "Type a country..." : "Name the highlighted area..."
-    : "Start typing: United...";
+    ? isAtlasCountryMap ? "Type the full country name..." : "Name the highlighted area..."
+    : "Type the full country name...";
   elements.inputHint.innerHTML = isAtlas
     ? isAtlasCountryMap
-      ? "Click any country or type directly. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through autocomplete."
-      : "Use autocomplete or type the highlighted area's full name, then press <kbd>Enter</kbd>."
-    : "Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to lock one in.";
+      ? "Click a country or enter its full name. Spelling help appears only after an unrecognized answer."
+      : "Enter the highlighted area's full name. Spelling help appears only after an unrecognized answer."
+    : "Enter a full country name and press <kbd>Enter</kbd>. Spelling help appears only after an unrecognized answer.";
   elements.gameCenter.classList.toggle("globle-layout", isGlobe);
   elements.gameCenter.classList.toggle("atlas-layout", isAtlas);
   elements.flagStage.classList.toggle("is-hidden", !isFlag);
@@ -1542,7 +1528,7 @@ function updateModeUI() {
 function finishRound(message, tone) {
   state.finished = true;
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
 
   if (state.gameType !== "globe") {
     revealAllTiles();
@@ -1590,7 +1576,7 @@ function showAtlasCountryBoard() {
   elements.atlasMapShell.classList.remove("is-hidden");
   elements.atlasHeading.textContent = getAtlasMapHeading();
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   setRoundInteractivity(true);
   updateModeUI();
   updateStatus(`Name all ${state.atlasQueue.length} countries. Click a country to target it, or type any country in this set.`);
@@ -1608,7 +1594,7 @@ function showAtlasTarget() {
   elements.atlasHeading.textContent = state.target.kind === "waters" ? "Oceans & seas map" : "Continents map";
   elements.atlasPosition.textContent = `${state.atlasIndex + 1} / ${state.atlasQueue.length}`;
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   setRoundInteractivity(true);
   updateModeUI();
   updateStatus(`Map ${state.atlasIndex + 1} of ${state.atlasQueue.length}. Name the highlighted area.`);
@@ -1690,7 +1676,10 @@ function submitAtlasGuess(rawValue) {
   }
 
   if (!isAtlasAnswer(state.target, rawValue)) {
-    updateStatus(`${rawValue.trim()} is not the highlighted area. Try again or reveal it.`, "failure");
+    offerSpellingCorrection(
+      rawValue,
+      `${rawValue.trim()} is not the highlighted area. Try again or reveal it.`
+    );
     return;
   }
 
@@ -1713,7 +1702,7 @@ function submitAtlasCountryGuess(rawValue) {
   const country = findCountry(rawValue);
 
   if (!country) {
-    updateStatus("Choose a valid country from autocomplete or keep typing.", "failure");
+    offerSpellingCorrection(rawValue, "That country name wasn’t recognized. Check the spelling and try again.");
     return;
   }
 
@@ -1745,7 +1734,7 @@ function submitAtlasCountryGuess(rawValue) {
   state.target = null;
   state.atlasSelectedCode = null;
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   renderGuesses();
   updateAtlasCountryMapStyles();
 
@@ -1797,7 +1786,7 @@ function revealAtlasCountry() {
   state.target = null;
   state.atlasSelectedCode = null;
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   renderGuesses();
   updateAtlasCountryMapStyles();
 
@@ -1832,7 +1821,7 @@ function submitFlagGuess(country) {
 
   updateStatus(`${country.name} is not it. One more tile opened.`, "default");
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   renderGuesses();
 }
 
@@ -1873,7 +1862,7 @@ function submitGlobeGuess(country) {
   rotateGlobeToCountry(country.code);
   updateStatus(`${country.name} is ${formatDistance(distanceKm)}.`, heatClass === "hot" ? "success" : "default");
   elements.countryInput.value = "";
-  clearSuggestions();
+  clearSpellingCorrection();
   renderGuesses();
   queueGlobeRender();
 }
@@ -1892,7 +1881,7 @@ function submitGuess(rawValue) {
   const country = findCountry(rawValue);
 
   if (!country) {
-    updateStatus("Pick a valid country from the list or keep typing for suggestions.", "failure");
+    offerSpellingCorrection(rawValue, "That country name wasn’t recognized. Check the spelling and try again.");
     return;
   }
 
@@ -2022,8 +2011,7 @@ function startGame() {
   const nextTarget = getTargetCountryForSelection();
   state.target = nextTarget || pickRandomCountry();
   state.guesses = [];
-  state.filteredSuggestions = [];
-  state.highlightedIndex = -1;
+  state.suggestedCorrection = null;
   state.finished = false;
   state.revealedTiles = 0;
   state.revealOrder = state.gameType === "flag"
@@ -2061,7 +2049,7 @@ function startGame() {
     );
   }
 
-  clearSuggestions();
+  clearSpellingCorrection();
   renderMask();
   renderGuesses();
   queueGlobeRender();
@@ -2137,46 +2125,21 @@ function endGlobeDrag(event) {
   }
 }
 
-elements.countryInput.addEventListener("input", (event) => {
-  state.filteredSuggestions = getSuggestions(event.target.value);
-  state.highlightedIndex = state.filteredSuggestions.length ? 0 : -1;
-  renderSuggestions();
+elements.countryInput.addEventListener("input", () => {
+  clearSpellingCorrection();
 });
 
 elements.countryInput.addEventListener("keydown", (event) => {
-  if (!state.filteredSuggestions.length) {
-    return;
-  }
-
-  if (event.key === "ArrowDown") {
+  if (event.key === "Enter" && state.suggestedCorrection) {
     event.preventDefault();
-    stepSuggestionHighlight(1);
-  }
-
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    stepSuggestionHighlight(-1);
-  }
-
-  if (event.key === "Enter" && state.highlightedIndex >= 0) {
-    event.preventDefault();
-    selectSuggestion(state.filteredSuggestions[state.highlightedIndex]);
-  }
-
-  if (event.key === "Tab") {
-    event.preventDefault();
-    stepSuggestionHighlight(event.shiftKey ? -1 : 1);
+    const correction = state.suggestedCorrection;
+    acceptSpellingCorrection(correction);
+    submitGuess(correction.name);
   }
 
   if (event.key === "Escape") {
-    clearSuggestions();
+    clearSpellingCorrection();
   }
-});
-
-elements.countryInput.addEventListener("blur", () => {
-  window.setTimeout(() => {
-    clearSuggestions();
-  }, 100);
 });
 
 elements.guessForm.addEventListener("submit", (event) => {

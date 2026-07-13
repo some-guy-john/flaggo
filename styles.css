@@ -126,43 +126,6 @@ button {
   gap: clamp(0.4rem, 0.8vh, 0.65rem);
 }
 
-.hero {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  justify-items: center;
-  gap: 0;
-  padding: clamp(0.55rem, 1.4vh, 0.95rem) 0 clamp(0.2rem, 0.7vh, 0.45rem);
-  text-align: center;
-}
-
-.hero-kicker {
-  display: none;
-  margin: 0;
-  font-family: "Space Mono", monospace;
-  font-size: 0.73rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--teal);
-}
-
-.hero h1 {
-  max-width: none;
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.8rem, 2.5vw, 2.65rem);
-  line-height: 1;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  color: var(--fg);
-}
-
-.mode-cluster {
-  display: grid;
-  gap: 0.45rem;
-  justify-items: center;
-}
-
 .sidebar-modes {
   display: grid;
   gap: 0.45rem;
@@ -831,7 +794,6 @@ button {
 
 .legend-chip,
 .history-count,
-.hero-kicker,
 .input-hint,
 kbd {
   font-family: var(--font-sans);
@@ -971,22 +933,9 @@ kbd {
   font-family: var(--font-sans);
 }
 
-.suggestions {
-  position: absolute;
-  top: calc(100% + 0.42rem);
-  left: 0;
-  right: 0;
+.spelling-suggestion {
   margin: 0;
-  padding: 0.36rem;
-  list-style: none;
   display: none;
-  max-height: min(260px, 28svh);
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg);
-  box-shadow: var(--shadow-lg);
-  z-index: 100;
 }
 
 :root[data-theme="dark"] kbd {
@@ -994,32 +943,37 @@ kbd {
   border-color: var(--border);
 }
 
-:root[data-theme="dark"] .suggestions {
-  background: var(--surface);
-  border-color: var(--border);
-}
-
-.suggestions.visible {
+.spelling-suggestion.visible {
   display: block;
+  margin-top: 0.55rem;
 }
 
-.suggestion-item {
-  padding: 0.78rem 0.86rem;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
+.spelling-suggestion-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.suggestion-item.active,
-.suggestion-item:hover {
-  background: var(--accent-soft);
+.spelling-suggestion-button strong {
   color: var(--accent);
+  font-weight: 700;
 }
 
-:root[data-theme="dark"] .suggestion-item.active,
-:root[data-theme="dark"] .suggestion-item:hover {
-  background: var(--accent-soft);
+.spelling-suggestion-button:hover,
+.spelling-suggestion-button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
 }
 
 .section-heading {
@@ -1287,16 +1241,6 @@ kbd {
     gap: 0.35rem;
   }
 
-  .hero {
-    padding: 0;
-  }
-
-  .hero h1 {
-    max-width: none;
-    font-size: clamp(1.55rem, 2.2vw, 2.1rem);
-    line-height: 0.94;
-  }
-
   .game-center {
     grid-template-columns: minmax(0, 1fr) minmax(286px, 320px);
     gap: 0.7rem;
@@ -1401,10 +1345,6 @@ kbd {
     gap: 0.25rem;
   }
 
-  .hero h1 {
-    font-size: clamp(1.45rem, 2vw, 1.9rem);
-  }
-
   .game-center {
     min-height: calc(100svh - 2.75rem);
     grid-template-columns: minmax(0, 1fr) minmax(278px, 304px);
@@ -1436,14 +1376,6 @@ kbd {
   .page-shell {
     min-height: auto;
     justify-content: flex-start;
-  }
-
-  .hero {
-    padding: 0.25rem 0 0.1rem;
-  }
-
-  .hero h1 {
-    max-width: none;
   }
 
   .sidebar-modes {
@@ -1479,19 +1411,6 @@ kbd {
   .page-shell {
     width: min(100vw - 1rem, 100%);
     padding-top: 0.8rem;
-  }
-
-  .hero {
-    justify-items: stretch;
-    text-align: left;
-  }
-
-  .hero h1 {
-    max-width: none;
-    font-size: clamp(1.75rem, 6.2vw, 2.3rem);
-    line-height: 0.96;
-    white-space: normal;
-    text-wrap: balance;
   }
 
   .mode-switch {
@@ -2030,7 +1949,7 @@ select:focus-visible,
 
 .atlas-map-shell,
 .guess-item,
-.suggestions {
+.spelling-suggestion-button {
   border-radius: 16px;
 }
 
@@ -2040,6 +1959,12 @@ select:focus-visible,
 
 @media (max-width: 940px) {
   .game-main { width: min(820px, 100%); }
+
+  .game-center,
+  .game-center.globle-layout,
+  .game-center.atlas-layout {
+    grid-template-columns: 1fr;
+  }
 
   .flag-stage,
   .globle-stage,
