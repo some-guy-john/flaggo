@@ -2186,3 +2186,59 @@ select:focus-visible,
     max-width: 1040px;
   }
 }
+
+/* Match the stronger visual presence of 110% browser zoom on roomy displays. */
+@media (min-width: 1600px) {
+  html {
+    font-size: 110%;
+  }
+
+  .app-header {
+    min-height: 75px;
+    gap: 18px;
+    padding: 13px clamp(18px, 3.2vw, 48px);
+  }
+
+  .app-header .settings-button,
+  .app-header .theme-toggle {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-header .settings-button svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .app-header .theme-toggle-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .game-main {
+    width: min(1760px, 100%);
+    padding: 46px 35px 44px;
+    gap: 15px;
+  }
+
+  .game-center,
+  .game-center.globle-layout,
+  .game-center.atlas-layout,
+  .game-center:not(.globle-layout):not(.atlas-layout) {
+    --play-area-height: 792px;
+    grid-template-columns: minmax(0, 1144px) 473px;
+    gap: 35px;
+  }
+
+  .flag-frame,
+  .globe-frame,
+  .atlas-frame {
+    max-width: 1144px;
+  }
+
+  .game-sidebar {
+    gap: 24px;
+    padding: 29px;
+    border-radius: 26px;
+  }
+}
