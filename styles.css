@@ -427,6 +427,21 @@ button {
   filter: brightness(0.92);
 }
 
+.atlas-country.selected {
+  stroke: var(--accent-hover);
+  stroke-width: 2;
+  filter: brightness(1.09);
+}
+
+.guess-item.atlas-history-item {
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.guess-item.atlas-history-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .atlas-map.is-interacting .atlas-country {
   transition: none;
   shape-rendering: optimizeSpeed;
@@ -844,6 +859,36 @@ kbd {
 .status-message.failure {
   color: var(--danger);
   font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.48rem;
+  padding: 0.58rem 0.68rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 48%, var(--border));
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 10%, transparent);
+  animation: statusAlertIn 0.2s ease-out;
+}
+
+.status-message.failure::before {
+  content: "!";
+  display: grid;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--surface);
+  background: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@keyframes statusAlertIn {
+  from { transform: translateX(-4px); opacity: 0.3; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .flag-guess-form {
@@ -922,6 +967,24 @@ kbd {
   font-size: 0.7rem;
   font-family: var(--font-sans);
 }
+
+.atlas-reveal-selected {
+  position: absolute;
+  left: 0.75rem;
+  top: 3.55rem;
+  z-index: 3;
+  min-height: 2rem;
+  padding: 0.38rem 0.68rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg);
+  background: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.atlas-reveal-selected:hover:not(:disabled) { border-color: var(--warning); color: var(--warning); }
+.atlas-reveal-selected:disabled { cursor: default; opacity: 0.55; }
 
 .country-suggestions {
   position: absolute;
