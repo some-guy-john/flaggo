@@ -25,8 +25,14 @@ const GLOBE_ZOOM_BUTTON_STEP = 0.25;
 const MAP_FEATURE_CODE_OVERRIDES = new Map([
   ["France", "fr"],
   ["Norway", "no"],
-  ["Israel", "ps"]
+  ["Israel", "ps"],
+  ["Taiwan", "tw"],
+  ["Kosovo", "xk"]
 ]);
+const OPTIONAL_COUNTRY_CENTROIDS = [
+  { code: "xk", lat: 42.5735, lng: 20.8705 },
+  { code: "tw", lat: 23.7451, lng: 120.9498 }
+];
 const ATLAS_SETS = [
   { id: "world", label: "All countries", kind: "countries", region: null },
   { id: "africa", label: "All countries in Africa", kind: "countries", region: "africa" },
@@ -189,6 +195,7 @@ const state = {
   countrySuggestions: [],
   highlightedSuggestionIndex: -1,
   finished: false,
+  finishReason: null,
   revealOrder: [],
   revealedTiles: 0,
   gameType: "flag",
@@ -516,6 +523,11 @@ async function loadCentroids() {
 
   const payload = await response.json();
   state.centroids = new Map((payload.entries || []).map((entry) => [entry.code, entry]));
+  OPTIONAL_COUNTRY_CENTROIDS.forEach((entry) => {
+    if (!state.centroids.has(entry.code)) {
+      state.centroids.set(entry.code, entry);
+    }
+  });
 }
 
 function loadAtlasCountries() {
@@ -1150,7 +1162,31 @@ function renderGuesses() {
     return;
   }
 
-  elements.historyCount.textContent = state.finished ? "Round complete" : `${MAX_GUESSES - state.guesses.length} slots left`;
+  elements.historyCount.textContent = state.finished
+    ? state.finishReason === "gave-up" ? "Answer revealed" : "Round complete"
+    : `${MAX_GUESSES - state.guesses.length} slots left`;
+
+  if (state.finished) {
+    state.guesses.forEach((guess, index) => {
+      const item = document.createElement("li");
+      item.className = `guess-item ${guess.correct ? "correct" : "incorrect"}`;
+      item.innerHTML = `
+        <span class="guess-label">${index + 1}. ${guess.name}</span>
+        <span class="guess-result">${guess.correct ? "Correct" : "Tile opened"}</span>
+      `;
+      elements.guessList.appendChild(item);
+    });
+
+    const result = document.createElement("li");
+    result.className = `round-answer ${state.finishReason === "gave-up" ? "revealed" : "complete"}`;
+    result.innerHTML = `
+      <span>${state.finishReason === "gave-up" ? "Answer revealed" : "Answer"}</span>
+      <strong>${state.target?.name || "Round complete"}</strong>
+      <small>Choose ${state.gameType === "globe" ? "New globe" : "New flag"} to play again.</small>
+    `;
+    elements.guessList.appendChild(result);
+    return;
+  }
 
   for (let index = 0; index < MAX_GUESSES; index += 1) {
     const item = document.createElement("li");
@@ -1796,7 +1832,9 @@ function updateModeUI() {
     "is-hidden",
     isAtlas ? isAtlasCountryMap ? !state.finished : !state.atlasAnswered && !state.finished : isDaily
   );
-  elements.giveUpButton.textContent = isAtlas ? isAtlasCountryMap ? "Give up" : "Reveal answer" : "Give up";
+  elements.giveUpButton.textContent = state.finished
+    ? "Answer shown"
+    : isAtlas ? isAtlasCountryMap ? "Give up" : "Reveal answer" : "Give up";
   elements.guessButton.textContent = isAtlas ? isAtlasCountryMap ? "Name country" : "Check" : "Guess";
   elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : "Country name";
   elements.countryInput.setAttribute("aria-autocomplete", isAtlas ? "none" : "list");
@@ -1834,6 +1872,7 @@ function finishRound(message, tone) {
   }
 
   setRoundInteractivity(false);
+  updateModeUI();
   updateStatus(message, tone);
   renderGuesses();
   queueGlobeRender();
@@ -2261,10 +2300,13 @@ function giveUp() {
   }
 
   if (state.gameType === "globe") {
+    state.finishReason = "gave-up";
+    rotateGlobeToCountry(state.target.code);
     finishRound(`You gave up. The country was ${state.target.name}.`, "failure");
     return;
   }
 
+  state.finishReason = "gave-up";
   finishRound(`You gave up. The flag was ${state.target.name}.`, "failure");
 }
 
@@ -2353,6 +2395,7 @@ function getTargetCountryForSelection() {
 
 function startGame() {
   clearAtlasAdvanceTimer();
+  state.finishReason = null;
   startGameTimer();
   clearCountrySuggestions();
   if (state.gameType === "atlas") {

@@ -1197,6 +1197,25 @@ kbd {
   border-color: var(--border);
 }
 
+.round-answer {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.78rem 0.86rem;
+  border: 1px solid var(--warning);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--warning) 13%, var(--surface));
+}
+.round-answer > span {
+  color: var(--warning);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.round-answer strong { color: var(--fg); font-size: 1rem; }
+.round-answer small { color: var(--muted); font-size: 0.72rem; }
+
 .guess-item.cold {
   border-left: 3px solid var(--heat-cold);
 }
