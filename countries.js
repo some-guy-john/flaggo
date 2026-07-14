@@ -78,7 +78,6 @@ window.COUNTRIES = [
   { name: "Iran", code: "ir", aliases: ["iran, islamic republic of"] },
   { name: "Iraq", code: "iq", aliases: [] },
   { name: "Ireland", code: "ie", aliases: [] },
-  { name: "Israel", code: "il", aliases: [] },
   { name: "Italy", code: "it", aliases: [] },
   { name: "Ivory Coast", code: "ci", aliases: ["cote d'ivoire", "côte d'ivoire"] },
   { name: "Jamaica", code: "jm", aliases: [] },

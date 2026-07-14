@@ -47,13 +47,14 @@
     <main class="game-main">
       <header class="page-intro">
         <h1 id="page-title">Guess the country from its flag.</h1>
+        <output id="game-timer" class="game-timer" aria-label="Elapsed time">00:00</output>
       </header>
       <section id="game-center" class="game-center" aria-labelledby="flag-title">
         <div id="atlas-stage" class="atlas-stage stage-panel is-hidden">
           <figure class="atlas-frame" aria-label="Geography study map">
             <div class="atlas-plate-heading">
               <span id="atlas-heading">Country map</span>
-              <span id="atlas-position">0 / 195 named</span>
+              <span id="atlas-position">0 / 194 named</span>
             </div>
             <div id="atlas-map-shell" class="atlas-map-shell">
               <svg
@@ -115,16 +116,18 @@
               <label for="atlas-set-select">Study set</label>
               <select id="atlas-set-select">
                 <optgroup label="Countries">
-                  <option value="world">World · 195</option>
+                  <option value="world">World · 194</option>
                   <option value="africa">Africa · 54</option>
-                  <option value="asia">Asia · 47</option>
+                  <option value="asia">Asia · 46</option>
                   <option value="europe">Europe · 45</option>
                   <option value="north-america">North America · 23</option>
                   <option value="south-america">South America · 12</option>
                   <option value="oceania">Oceania · 14</option>
                 </optgroup>
                 <optgroup label="Physical geography">
-                  <option value="oceans-seas">Oceans &amp; major seas · 48</option>
+                  <option value="oceans">Oceans · 5</option>
+                  <option value="seas">Seas &amp; gulfs · 43</option>
+                  <option value="islands">Islands · 8</option>
                   <option value="continents">Continents · 7</option>
                 </optgroup>
               </select>
@@ -214,6 +217,25 @@
           <div class="palette-check">&check;</div>
         </div>
       </div>
+      <section class="settings-zoom" aria-labelledby="site-zoom-title">
+        <div>
+          <p class="settings-section-label" id="site-zoom-title">Interface size</p>
+          <p class="settings-section-help">Saved only on this device.</p>
+        </div>
+        <div class="settings-zoom-controls" role="group" aria-label="Interface size controls">
+          <button id="site-zoom-out" class="site-zoom-button" type="button" aria-label="Make interface smaller">−</button>
+          <output id="site-zoom-value" for="site-zoom-out site-zoom-in">100%</output>
+          <button id="site-zoom-in" class="site-zoom-button" type="button" aria-label="Make interface larger">+</button>
+        </div>
+      </section>
+      <section class="recognition-settings" aria-labelledby="recognition-title">
+        <div>
+          <p class="settings-section-label" id="recognition-title">Additional places</p>
+          <p class="settings-section-help">Add them to every country game on this device.</p>
+        </div>
+        <label class="setting-toggle"><input id="include-taiwan" type="checkbox"> <span>Include Taiwan</span></label>
+        <label class="setting-toggle"><input id="include-kosovo" type="checkbox"> <span>Include Kosovo</span></label>
+      </section>
     </div>
   </div>
 
