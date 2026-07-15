@@ -19,6 +19,7 @@
         <button id="flag-game-button" class="mode-button" type="button">Flag</button>
         <button id="globle-game-button" class="mode-button" type="button">Globle</button>
         <button id="atlas-game-button" class="mode-button" type="button">Map</button>
+        <button id="capitals-game-button" class="mode-button" type="button">Capitals</button>
       </nav>
 
       <div class="header-actions">
@@ -100,6 +101,16 @@
           </div>
         </div>
 
+        <div id="capital-stage" class="capital-stage stage-panel is-hidden">
+          <div class="capital-panel">
+            <span class="capital-eyebrow">Country</span>
+            <h2 id="capital-country-name" class="capital-country-name">Country</h2>
+            <div id="capital-flag-frame" class="capital-flag-frame">
+              <img id="capital-flag-image" class="capital-flag-image" alt="Country flag">
+            </div>
+          </div>
+        </div>
+
         <div id="flag-stage" class="flag-stage stage-panel">
           <div class="flag-frame">
             <img id="flag-image" class="flag-image" alt="Mystery country flag">
@@ -112,6 +123,10 @@
             <div id="play-mode-switch" class="mode-switch sub-switch" role="group" aria-label="Play mode">
               <button id="daily-mode-button" class="mode-button" type="button">Daily</button>
               <button id="unlimited-mode-button" class="mode-button" type="button">Unlimited</button>
+            </div>
+            <div id="hints-switch" class="mode-switch sub-switch is-hidden" role="group" aria-label="Hints">
+              <button id="hints-off-button" class="mode-button" type="button">No hints</button>
+              <button id="hints-on-button" class="mode-button" type="button">Hints</button>
             </div>
             <div id="atlas-set-control" class="atlas-set-control is-hidden">
               <label for="atlas-set-select">Study set</label>
@@ -133,6 +148,18 @@
                 </optgroup>
               </select>
             </div>
+            <div id="capitals-region-control" class="capitals-region-control is-hidden">
+              <label for="capitals-region-select">Region</label>
+              <select id="capitals-region-select">
+                <option value="world">World · 194</option>
+                <option value="africa">Africa · 54</option>
+                <option value="asia">Asia · 46</option>
+                <option value="europe">Europe · 45</option>
+                <option value="north-america">North America · 23</option>
+                <option value="south-america">South America · 12</option>
+                <option value="oceania">Oceania · 14</option>
+              </select>
+            </div>
           </div>
 
           <div class="flag-meta">
@@ -140,7 +167,7 @@
             <p id="status-message" class="status-message">Each valid guess reveals one tile. Find it before the whole flag opens.</p>
           </div>
 
-          <form id="guess-form" class="guess-form flag-guess-form" autocomplete="off">
+          <div id="guess-form-slot" class="guess-form-slot"><form id="guess-form" class="guess-form flag-guess-form" autocomplete="off">
             <label class="sr-only" for="country-input">Country name</label>
             <div class="input-wrap">
               <input
@@ -158,7 +185,22 @@
             <ul id="country-suggestions" class="country-suggestions" role="listbox" aria-label="Country suggestions"></ul>
             <p id="input-hint" class="input-hint">Enter a full country name. Spelling help appears only after an unrecognized answer.</p>
             <div id="spelling-suggestion" class="spelling-suggestion" role="status" aria-live="polite"></div>
-          </form>
+          </form></div>
+
+          <div id="sidebar-hints" class="sidebar-hints is-hidden">
+            <div class="sidebar-hints-header">
+              <span class="capital-hints-title">Hints</span>
+              <div id="hints-dots" class="hints-dots" role="group" aria-label="Unlocked hints"></div>
+              <div class="hint-nav">
+                <button id="hint-prev" class="hint-nav-button" type="button" aria-label="Previous hint">&lsaquo;</button>
+                <button id="hint-next" class="hint-nav-button" type="button" aria-label="Next hint">&rsaquo;</button>
+              </div>
+            </div>
+            <div id="hint-card" class="hint-card empty">
+              <span id="hint-card-number" class="hint-card-number">&ndash;</span>
+              <p id="hint-card-text" class="hint-card-text" aria-live="polite">Each wrong guess unlocks a hint.</p>
+            </div>
+          </div>
 
           <div class="section-heading board-heading">
             <h3 id="guesses-title">Guess board</h3>
@@ -240,7 +282,8 @@
     </div>
   </div>
 
-  <script src="countries.js"></script>
+<script src="countries.js"></script>
+  <script src="data/capitals-data.js"></script>
   <script src="vendor/d3.min.js"></script>
   <script src="script.js"></script>
 </body>

@@ -47,6 +47,7 @@ const ATLAS_SETS = [
   { id: "continents", label: "The seven continents", kind: "continents" }
 ];
 const ATLAS_SET_IDS = new Set(ATLAS_SETS.map((set) => set.id));
+const CAPITALS_REGIONS = new Set(["world", "africa", "asia", "europe", "north-america", "south-america", "oceania"]);
 const COUNTRY_REGION_BY_CODE = new Map([
   ["africa", "ao bf bi bj bw cd cf cg ci cm cv dj dz eg er et ga gh gm gn gq gw ke km lr ls ly ma mg ml mr mu mw mz na ne ng rw sc sd sl sn so ss st sz td tg tn tz ug za zm zw"],
   ["asia", "ae af am az bd bh bn bt cn ge id in iq ir jo jp kg kh kp kr kw kz la lb lk mm mn mv my np om ph pk ps qa sa sg sy th tj tl tm tr tw uz vn ye"],
@@ -202,7 +203,8 @@ const state = {
   playMode: "daily",
   dailySchedules: {
     flag: { entries: [], lookup: new Map(), meta: null },
-    globe: { entries: [], lookup: new Map(), meta: null }
+    globe: { entries: [], lookup: new Map(), meta: null },
+    capitals: { entries: [], lookup: new Map(), meta: null }
   },
   dailyDateKey: null,
   centroids: new Map(),
@@ -221,6 +223,8 @@ const state = {
   atlasCountries: [],
   atlasSet: "world",
   atlasQueue: [],
+  capitalsRegion: "world",
+  hintsEnabled: false,
   atlasIndex: 0,
   atlasAnswered: false,
   atlasAdvanceTimer: null,
@@ -243,10 +247,27 @@ const elements = {
   flagGameButton: document.querySelector("#flag-game-button"),
   globleGameButton: document.querySelector("#globle-game-button"),
   atlasGameButton: document.querySelector("#atlas-game-button"),
+  capitalsGameButton: document.querySelector("#capitals-game-button"),
+  atlasSetControl: document.querySelector("#atlas-set-control"),
+  capitalsRegionControl: document.querySelector("#capitals-region-control"),
+  capitalsRegionSelect: document.querySelector("#capitals-region-select"),
+  capitalStage: document.querySelector("#capital-stage"),
+  capitalCountryName: document.querySelector("#capital-country-name"),
+  capitalFlagFrame: document.querySelector("#capital-flag-frame"),
+  capitalFlagImage: document.querySelector("#capital-flag-image"),
+  hintsSwitch: document.querySelector("#hints-switch"),
+  hintsOffButton: document.querySelector("#hints-off-button"),
+  hintsOnButton: document.querySelector("#hints-on-button"),
+  sidebarHints: document.querySelector("#sidebar-hints"),
+  hintsDots: document.querySelector("#hints-dots"),
+  hintCard: document.querySelector("#hint-card"),
+  hintCardNumber: document.querySelector("#hint-card-number"),
+  hintCardText: document.querySelector("#hint-card-text"),
+  hintPrevButton: document.querySelector("#hint-prev"),
+  hintNextButton: document.querySelector("#hint-next"),
   dailyModeButton: document.querySelector("#daily-mode-button"),
   unlimitedModeButton: document.querySelector("#unlimited-mode-button"),
   playModeSwitch: document.querySelector("#play-mode-switch"),
-  atlasSetControl: document.querySelector("#atlas-set-control"),
   atlasSetSelect: document.querySelector("#atlas-set-select"),
   gameCenter: document.querySelector("#game-center"),
   atlasStage: document.querySelector("#atlas-stage"),
@@ -439,13 +460,15 @@ function getSavedSelection() {
     }
 
     const parsed = JSON.parse(raw);
-    const gameType = ["flag", "globe", "atlas"].includes(parsed?.gameType) ? parsed.gameType : "flag";
+    const gameType = ["flag", "globe", "atlas", "capitals"].includes(parsed?.gameType) ? parsed.gameType : "flag";
     const playMode = parsed?.playMode === "unlimited" ? "unlimited" : "daily";
     const atlasSet = ATLAS_SET_IDS.has(parsed?.atlasSet) ? parsed.atlasSet : "world";
+    const capitalsRegion = CAPITALS_REGIONS.has(parsed?.capitalsRegion) ? parsed.capitalsRegion : "world";
+    const hintsEnabled = parsed?.hintsEnabled === true;
 
-    return { gameType, playMode, atlasSet };
+    return { gameType, playMode, atlasSet, capitalsRegion, hintsEnabled };
   } catch {
-    return { gameType: "flag", playMode: "daily", atlasSet: "world" };
+    return { gameType: "flag", playMode: "daily", atlasSet: "world", capitalsRegion: "world", hintsEnabled: false };
   }
 }
 
@@ -456,7 +479,9 @@ function saveSelection() {
       JSON.stringify({
         gameType: state.gameType,
         playMode: state.playMode,
-        atlasSet: state.atlasSet
+        atlasSet: state.atlasSet,
+        capitalsRegion: state.capitalsRegion,
+        hintsEnabled: state.hintsEnabled
       })
     );
   } catch {
@@ -832,16 +857,184 @@ function getDailyCountryForDate(track, dateKey) {
   return code ? countryByCode.get(code) || null : null;
 }
 
+function trackForGameType(gameType) {
+  return gameType === "globe" ? "globe" : gameType === "capitals" ? "capitals" : "flag";
+}
+
+function getCapitalForCode(code) {
+  return window.CAPITAL_HINTS?.[code]?.capital || "";
+}
+
+function getCapitalHintsForCode(code) {
+  return window.CAPITAL_HINTS?.[code]?.hints || [];
+}
+
+function getCapitalScopeCountries() {
+  const region = state.capitalsRegion;
+  if (!region || region === "world") {
+    return countries;
+  }
+  return countries.filter((country) => COUNTRY_REGION_BY_CODE.get(country.code) === region);
+}
+
+function getCapitalCandidates() {
+  const scope = state.playMode === "unlimited" ? getCapitalScopeCountries() : countries;
+  return scope
+    .map((country) => {
+      const capital = getCapitalForCode(country.code);
+      if (!capital) {
+        return null;
+      }
+      return { name: capital, code: country.code, aliases: [] };
+    })
+    .filter(Boolean);
+}
+
+function pickCapitalTarget() {
+  const scope = getCapitalScopeCountries().filter((country) => getCapitalForCode(country.code));
+  if (!scope.length) {
+    return countries.find((country) => getCapitalForCode(country.code)) || pickRandomCountry();
+  }
+  return scope[Math.floor(Math.random() * scope.length)];
+}
+
+function isHintGameType() {
+  return state.gameType === "flag" || state.gameType === "globe";
+}
+
+const hintView = { unlocked: 0, index: -1, targetCode: null };
+
+function showHintAt(index) {
+  hintView.index = index;
+  renderSidebarHints();
+}
+
+function renderSidebarHints() {
+  if (!elements.sidebarHints) {
+    return;
+  }
+
+  const show = isHintGameType() && state.hintsEnabled;
+  elements.sidebarHints.classList.toggle("is-hidden", !show);
+  if (!show) {
+    return;
+  }
+
+  const targetCode = state.target?.code || null;
+  const hints = targetCode ? getCapitalHintsForCode(targetCode) : [];
+  const total = hints.length;
+  const wrongGuesses = state.guesses.filter((guess) => !guess.correct).length;
+  const unlocked = Math.min(total, wrongGuesses);
+
+  if (targetCode !== hintView.targetCode) {
+    hintView.targetCode = targetCode;
+    hintView.unlocked = unlocked;
+    hintView.index = unlocked - 1;
+  } else if (unlocked !== hintView.unlocked) {
+    const isNewUnlock = unlocked > hintView.unlocked;
+    hintView.unlocked = unlocked;
+    hintView.index = unlocked - 1;
+    if (isNewUnlock && !state.finished && elements.hintCard) {
+      elements.hintCard.classList.remove("hint-pop");
+      void elements.hintCard.offsetWidth;
+      elements.hintCard.classList.add("hint-pop");
+    }
+  }
+  if (hintView.index >= unlocked) {
+    hintView.index = unlocked - 1;
+  }
+
+  elements.hintsDots.innerHTML = "";
+  for (let index = 0; index < total; index += 1) {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    const isUnlocked = index < unlocked;
+    dot.className = `hint-dot${isUnlocked ? " unlocked" : ""}${index === hintView.index ? " current" : ""}`;
+    dot.setAttribute("aria-label", `Hint ${index + 1}${isUnlocked ? "" : " (locked)"}`);
+    dot.disabled = !isUnlocked;
+    if (isUnlocked) {
+      dot.addEventListener("click", () => showHintAt(index));
+    }
+    elements.hintsDots.appendChild(dot);
+  }
+
+  const current = hintView.index;
+  const hasHint = current >= 0;
+  elements.hintCard.classList.toggle("empty", !hasHint);
+  elements.hintCardNumber.innerHTML = hasHint ? String(current + 1) : "&ndash;";
+  elements.hintCardText.textContent = hasHint
+    ? hints[current]
+    : total ? "Each wrong guess unlocks a hint." : "No hints available for this round.";
+  elements.hintPrevButton.disabled = current <= 0;
+  elements.hintNextButton.disabled = current >= unlocked - 1;
+}
+
+function renderCapitalStage() {
+  if (!state.target) {
+    return;
+  }
+  if (elements.capitalCountryName) {
+    elements.capitalCountryName.textContent = state.target.name;
+  }
+  if (elements.capitalFlagImage) {
+    elements.capitalFlagImage.src = getFlagUrl(state.target.code);
+    elements.capitalFlagImage.alt = `${state.target.name} flag`;
+  }
+}
+
+function submitCapitalGuess(country) {
+  const correct = country.code === state.target.code;
+  state.guesses.push({
+    name: country.name,
+    code: country.code,
+    correct
+  });
+
+  if (correct) {
+    finishRound(`Yea, it's done. You named the capital.`, "success");
+    launchConfetti();
+    return;
+  }
+
+  if (state.guesses.length >= MAX_GUESSES) {
+    finishRound(
+      `Round over. You used all ${MAX_GUESSES} guesses.`,
+      "failure"
+    );
+    return;
+  }
+
+  updateStatus(`${country.name} is not the capital. Try again.`, "default");
+  elements.countryInput.value = "";
+  clearSpellingCorrection();
+  renderGuesses();
+}
+
 function findCountry(query) {
   const normalizedQuery = normalize(query);
+  const pool = state.gameType === "capitals" ? getCapitalCandidates() : countries;
 
-  return countries.find((country) => {
+  return pool.find((country) => {
     if (normalize(country.name) === normalizedQuery) {
       return true;
     }
 
-    return country.aliases.some((alias) => normalize(alias) === normalizedQuery);
+    return (country.aliases || []).some((alias) => normalize(alias) === normalizedQuery);
   });
+}
+
+function scoreCandidate(country, normalizedQuery) {
+  const primaryName = normalize(country.name);
+  const aliases = (country.aliases || []).map((name) => normalize(name));
+  return primaryName.startsWith(normalizedQuery)
+    ? 4
+    : aliases.some((name) => name.startsWith(normalizedQuery))
+      ? 3
+      : primaryName.includes(normalizedQuery)
+        ? 2
+        : aliases.some((name) => name.includes(normalizedQuery))
+          ? 1
+          : 0;
 }
 
 function getCountrySuggestions(query) {
@@ -851,21 +1044,10 @@ function getCountrySuggestions(query) {
     return [];
   }
 
-  return countries
-    .map((country) => {
-      const primaryName = normalize(country.name);
-      const aliases = (country.aliases || []).map((name) => normalize(name));
-      const score = primaryName.startsWith(normalizedQuery)
-        ? 4
-        : aliases.some((name) => name.startsWith(normalizedQuery))
-          ? 3
-          : primaryName.includes(normalizedQuery)
-            ? 2
-            : aliases.some((name) => name.includes(normalizedQuery))
-              ? 1
-              : 0;
-      return { country, score };
-    })
+  const pool = state.gameType === "capitals" ? getCapitalCandidates() : countries;
+
+  return pool
+    .map((country) => ({ country, score: scoreCandidate(country, normalizedQuery) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score || a.country.name.localeCompare(b.country.name))
     .slice(0, 8)
@@ -873,7 +1055,10 @@ function getCountrySuggestions(query) {
 }
 
 function getInputCandidates() {
-  return state.gameType === "atlas" ? getAtlasPlacesForSet() : countries;
+  if (state.gameType === "atlas") {
+    return getAtlasPlacesForSet();
+  }
+  return state.gameType === "capitals" ? getCapitalCandidates() : countries;
 }
 
 function getEditDistance(left, right) {
@@ -1079,6 +1264,8 @@ function renderGuesses() {
   const isAtlas = state.gameType === "atlas";
   elements.guessList.classList.toggle("globle-board", isGlobe);
   elements.guessList.classList.toggle("atlas-board", isAtlas);
+  elements.guessList.classList.toggle("round-over", !isGlobe && !isAtlas && state.finished);
+  renderSidebarHints();
 
   if (isAtlas) {
     const namedCount = state.guesses.filter((guess) => guess.correct).length;
@@ -1162,8 +1349,12 @@ function renderGuesses() {
     return;
   }
 
+  const isCapitals = state.gameType === "capitals";
+  const wrongResultLabel = isCapitals ? "Wrong capital" : "Tile opened";
+  const answerLabel = isCapitals ? "Capital" : "Answer";
+
   elements.historyCount.textContent = state.finished
-    ? state.finishReason === "gave-up" ? "Answer revealed" : "Round complete"
+    ? state.finishReason === "gave-up" ? `${answerLabel} revealed` : "Round complete"
     : `${MAX_GUESSES - state.guesses.length} slots left`;
 
   if (state.finished) {
@@ -1172,7 +1363,7 @@ function renderGuesses() {
       item.className = `guess-item ${guess.correct ? "correct" : "incorrect"}`;
       item.innerHTML = `
         <span class="guess-label">${index + 1}. ${guess.name}</span>
-        <span class="guess-result">${guess.correct ? "Correct" : "Tile opened"}</span>
+        <span class="guess-result">${guess.correct ? "Correct" : wrongResultLabel}</span>
       `;
       elements.guessList.appendChild(item);
     });
@@ -1180,9 +1371,13 @@ function renderGuesses() {
     const result = document.createElement("li");
     result.className = `round-answer ${state.finishReason === "gave-up" ? "revealed" : "complete"}`;
     result.innerHTML = `
-      <span>${state.finishReason === "gave-up" ? "Answer revealed" : "Answer"}</span>
-      <strong>${state.target?.name || "Round complete"}</strong>
-      <small>Choose ${state.gameType === "globe" ? "New globe" : "New flag"} to play again.</small>
+      <span>${state.finishReason === "gave-up" ? `${answerLabel} revealed` : answerLabel}</span>
+      <strong>${isCapitals ? getCapitalForCode(state.target?.code) : (state.target?.name || "Round complete")}</strong>
+      <small>${state.target && !isCapitals && getCapitalForCode(state.target.code) ? `Capital: ${getCapitalForCode(state.target.code)}. ` : ""}Choose ${
+        state.gameType === "globe" ? "New globe"
+        : state.gameType === "capitals" ? "New capitals"
+        : "New flag"
+      } to play again.</small>
     `;
     elements.guessList.appendChild(result);
     return;
@@ -1196,7 +1391,7 @@ function renderGuesses() {
       item.className = `guess-item ${guess.correct ? "correct" : "incorrect"}`;
       item.innerHTML = `
         <span class="guess-label">${index + 1}. ${guess.name}</span>
-        <span class="guess-result">${guess.correct ? "Correct" : "Tile opened"}</span>
+        <span class="guess-result">${guess.correct ? "Correct" : wrongResultLabel}</span>
       `;
     } else {
       item.className = `guess-item ${state.finished ? "locked" : "empty"}`;
@@ -1280,6 +1475,17 @@ function updateFlagFrameAspectRatio() {
 
   elements.flagFrame.style.setProperty("--flag-aspect-ratio", `${naturalWidth} / ${naturalHeight}`);
   elements.flagFrame.style.setProperty("--flag-aspect-number", String(naturalWidth / naturalHeight));
+}
+
+function updateCapitalFlagFrameAspectRatio() {
+  const { naturalWidth, naturalHeight } = elements.capitalFlagImage;
+
+  if (!naturalWidth || !naturalHeight || !elements.capitalFlagFrame) {
+    return;
+  }
+
+  elements.capitalFlagFrame.style.setProperty("--flag-aspect-ratio", `${naturalWidth} / ${naturalHeight}`);
+  elements.capitalFlagFrame.style.setProperty("--flag-aspect-number", String(naturalWidth / naturalHeight));
 }
 
 function renderMask() {
@@ -1800,6 +2006,7 @@ function updateModeUI() {
   const isFlag = state.gameType === "flag";
   const isGlobe = state.gameType === "globe";
   const isAtlas = state.gameType === "atlas";
+  const isCapitals = state.gameType === "capitals";
   const isDaily = state.playMode === "daily";
   const isUnlimited = state.playMode === "unlimited";
   const atlasSet = getAtlasSetDefinition();
@@ -1808,26 +2015,36 @@ function updateModeUI() {
   elements.flagGameButton.classList.toggle("active", isFlag);
   elements.globleGameButton.classList.toggle("active", isGlobe);
   elements.atlasGameButton.classList.toggle("active", isAtlas);
+  elements.capitalsGameButton.classList.toggle("active", isCapitals);
   elements.dailyModeButton.classList.toggle("active", isDaily);
   elements.unlimitedModeButton.classList.toggle("active", isUnlimited);
   elements.playModeSwitch.classList.toggle("is-hidden", isAtlas);
   elements.atlasSetControl.classList.toggle("is-hidden", !isAtlas);
   elements.atlasSetSelect.value = state.atlasSet;
+  elements.capitalsRegionControl.classList.toggle("is-hidden", !isCapitals || isDaily);
+  elements.capitalsRegionSelect.value = state.capitalsRegion;
+  elements.hintsSwitch.classList.toggle("is-hidden", !isFlag && !isGlobe);
+  elements.hintsOffButton.classList.toggle("active", !state.hintsEnabled);
+  elements.hintsOnButton.classList.toggle("active", state.hintsEnabled);
 
   elements.pageTitle.textContent = isAtlas
     ? isAtlasCountryMap ? "Name every country on the map." : "Name the highlighted area."
     : isGlobe
       ? "Guess the country from the globe."
-      : "Guess the country from its flag.";
+      : isCapitals
+        ? "Name the capital from the country and its flag."
+        : "Guess the country from its flag.";
   elements.roundTitle.textContent = isAtlas
     ? atlasSet.id === "world" ? `All ${countries.length} countries` : atlasSet.label
     : isGlobe
       ? isDaily ? "Daily globe mystery country" : "Unlimited globe practice"
-      : isDaily ? "Daily shared flag" : "Unlimited flag practice";
+      : isCapitals
+        ? isDaily ? "Daily shared capital" : "Unlimited capitals practice"
+        : isDaily ? "Daily shared flag" : "Unlimited flag practice";
   elements.guessesTitle.textContent = isAtlas ? "Set progress" : isGlobe ? "Proximity board" : "Guess board";
   elements.newGameButton.textContent = isAtlas
     ? isAtlasCountryMap ? "Restart map" : state.finished ? "Restart set" : "Next map"
-    : isGlobe ? "New globe" : "New flag";
+    : isGlobe ? "New globe" : isCapitals ? "New capitals" : "New flag";
   elements.newGameButton.classList.toggle(
     "is-hidden",
     isAtlas ? isAtlasCountryMap ? !state.finished : !state.atlasAnswered && !state.finished : isDaily
@@ -1836,38 +2053,42 @@ function updateModeUI() {
     ? "Answer shown"
     : isAtlas ? isAtlasCountryMap ? "Give up" : "Reveal answer" : "Give up";
   elements.guessButton.textContent = isAtlas ? isAtlasCountryMap ? "Name country" : "Check" : "Guess";
-  elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : "Country name";
+  elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : isCapitals ? "Capital city" : "Country name";
   elements.countryInput.setAttribute("aria-autocomplete", isAtlas ? "none" : "list");
   elements.countryInput.placeholder = isAtlas
     ? isAtlasCountryMap ? "Type the full country name..." : "Name the highlighted area..."
-    : "Type the full country name...";
+    : isCapitals ? "Type the capital city name..." : "Type the full country name...";
   elements.inputHint.innerHTML = isAtlas
     ? isAtlasCountryMap
       ? "Type any country name. Click a country only when you want to reveal it."
       : "Enter the highlighted area's full name. Spelling help appears only after an unrecognized answer."
-    : "Type to search countries. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to autofill.";
+    : isCapitals
+      ? "Type to search capital cities. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to autofill."
+      : "Type to search countries. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to autofill.";
   elements.gameCenter.classList.toggle("globle-layout", isGlobe);
   elements.gameCenter.classList.toggle("atlas-layout", isAtlas);
+  elements.gameCenter.classList.toggle("capitals-layout", isCapitals);
   elements.flagStage.classList.toggle("is-hidden", !isFlag);
   elements.globleStage.classList.toggle("is-hidden", !isGlobe);
   elements.atlasStage.classList.toggle("is-hidden", !isAtlas);
+  elements.capitalStage.classList.toggle("is-hidden", !isCapitals);
 
   elements.flagImage.classList.toggle("is-hidden", !isFlag);
   elements.flagMask.classList.toggle("is-hidden", !isFlag);
   elements.globlePanel.classList.toggle("is-hidden", !isGlobe);
   elements.globlePanel.setAttribute("aria-hidden", String(!isGlobe));
   elements.atlasStage.setAttribute("aria-hidden", String(!isAtlas));
+  elements.capitalStage.setAttribute("aria-hidden", String(!isCapitals));
   elements.atlasShowRemainingButton.classList.toggle("is-hidden", !isAtlasCountryMap);
   elements.atlasRevealSelectedButton.classList.toggle("is-hidden", !isAtlasCountryMap);
 }
-
 function finishRound(message, tone) {
   state.finished = true;
   stopGameTimer();
   elements.countryInput.value = "";
   clearSpellingCorrection();
 
-  if (state.gameType !== "globe") {
+  if (state.gameType !== "globe" && state.gameType !== "capitals") {
     revealAllTiles();
   }
 
@@ -2276,7 +2497,12 @@ function submitGuess(rawValue) {
 
   const alreadyGuessed = state.guesses.some((guess) => guess.code === country.code);
   if (alreadyGuessed) {
-    updateStatus(`${country.name} is already on the board. Try another country.`, "failure");
+    updateStatus(`${country.name} is already on the board. Try ${state.gameType === "capitals" ? "another capital" : "another country"}.`, "failure");
+    return;
+  }
+
+  if (state.gameType === "capitals") {
+    submitCapitalGuess(country);
     return;
   }
 
@@ -2299,6 +2525,12 @@ function giveUp() {
     return;
   }
 
+  if (state.gameType === "capitals") {
+    state.finishReason = "gave-up";
+    finishRound("You gave up. The capital is revealed on the guess board.", "failure");
+    return;
+  }
+
   if (state.gameType === "globe") {
     state.finishReason = "gave-up";
     rotateGlobeToCountry(state.target.code);
@@ -2307,7 +2539,7 @@ function giveUp() {
   }
 
   state.finishReason = "gave-up";
-  finishRound(`You gave up. The flag was ${state.target.name}.`, "failure");
+  finishRound("You gave up. The answer is revealed on the guess board.", "failure");
 }
 
 function resizeConfettiCanvas() {
@@ -2385,11 +2617,14 @@ function renderConfetti() {
 function getTargetCountryForSelection() {
   if (state.playMode === "daily") {
     state.dailyDateKey = toUtcDateKey();
-    const track = state.gameType === "globe" ? "globe" : "flag";
+    const track = trackForGameType(state.gameType);
     return getDailyCountryForDate(track, state.dailyDateKey);
   }
 
   state.dailyDateKey = null;
+  if (state.gameType === "capitals") {
+    return pickCapitalTarget();
+  }
   return pickRandomCountry();
 }
 
@@ -2423,8 +2658,14 @@ function startGame() {
   }
 
   updateModeUI();
-  elements.flagImage.src = getFlagUrl(state.target.code);
-  elements.flagImage.alt = "Mystery country flag";
+
+  if (state.gameType === "capitals") {
+    renderCapitalStage();
+  } else {
+    elements.flagImage.src = getFlagUrl(state.target.code);
+    elements.flagImage.alt = "Mystery country flag";
+  }
+
   elements.countryInput.value = "";
   setRoundInteractivity(true);
 
@@ -2433,6 +2674,13 @@ function startGame() {
       state.playMode === "daily"
         ? "Daily globe mode: a separate UTC-dated country is shared here each day."
         : "Unlimited globe mode: every new round picks another random country.",
+      "default"
+    );
+  } else if (state.gameType === "capitals") {
+    updateStatus(
+      state.playMode === "daily"
+        ? "Daily capitals mode: a shared country is picked each day. Name its capital."
+        : "Unlimited capitals mode: every new round shows a country. Name its capital.",
       "default"
     );
   } else {
@@ -2445,7 +2693,9 @@ function startGame() {
   }
 
   clearSpellingCorrection();
-  renderMask();
+  if (state.gameType !== "capitals") {
+    renderMask();
+  }
   renderGuesses();
   queueGlobeRender();
   elements.countryInput.focus();
@@ -2460,10 +2710,14 @@ function setSelection(partial) {
   }
 
   if (nextGameType !== "atlas" && nextPlayMode === "daily") {
-    const track = nextGameType === "globe" ? "globe" : "flag";
+    const track = trackForGameType(nextGameType);
     if (!getScheduleForTrack(track)?.entries?.length) {
       return;
     }
+  }
+
+  if (nextGameType === "capitals" && !window.CAPITAL_HINTS) {
+    return;
   }
 
   if (nextGameType === "globe" && (!state.centroids.size || !state.globeFeatures.length)) {
@@ -2612,6 +2866,10 @@ elements.atlasGameButton.addEventListener("click", () => {
   setSelection({ gameType: "atlas" });
 });
 
+elements.capitalsGameButton.addEventListener("click", () => {
+  setSelection({ gameType: "capitals" });
+});
+
 elements.dailyModeButton.addEventListener("click", () => {
   setSelection({ playMode: "daily" });
 });
@@ -2629,6 +2887,43 @@ elements.atlasSetSelect.addEventListener("change", (event) => {
   state.atlasSet = nextSet;
   saveSelection();
   startAtlasSession();
+});
+
+elements.capitalsRegionSelect.addEventListener("change", (event) => {
+  const nextRegion = event.target.value;
+  if (!CAPITALS_REGIONS.has(nextRegion) || nextRegion === state.capitalsRegion) {
+    return;
+  }
+
+  state.capitalsRegion = nextRegion;
+  saveSelection();
+  if (state.gameType === "capitals" && state.playMode === "unlimited") {
+    startGame();
+  }
+});
+
+function setHintsEnabled(enabled) {
+  if (state.hintsEnabled === enabled) {
+    return;
+  }
+  state.hintsEnabled = enabled;
+  saveSelection();
+  elements.hintsOffButton.classList.toggle("active", !enabled);
+  elements.hintsOnButton.classList.toggle("active", enabled);
+  renderSidebarHints();
+}
+
+elements.hintsOffButton.addEventListener("click", () => setHintsEnabled(false));
+elements.hintsOnButton.addEventListener("click", () => setHintsEnabled(true));
+elements.hintPrevButton.addEventListener("click", () => {
+  if (hintView.index > 0) {
+    showHintAt(hintView.index - 1);
+  }
+});
+elements.hintNextButton.addEventListener("click", () => {
+  if (hintView.index < hintView.unlocked - 1) {
+    showHintAt(hintView.index + 1);
+  }
 });
 
 elements.newGameButton.addEventListener("click", () => {
@@ -2649,6 +2944,7 @@ elements.newGameButton.addEventListener("click", () => {
 elements.giveUpButton.addEventListener("click", giveUp);
 elements.themeToggle.addEventListener("click", toggleTheme);
 elements.flagImage.addEventListener("load", updateFlagFrameAspectRatio);
+elements.capitalFlagImage.addEventListener("load", updateCapitalFlagFrameAspectRatio);
 elements.globeCanvas.addEventListener("pointerdown", beginGlobeDrag);
 elements.globeCanvas.addEventListener("pointermove", moveGlobeDrag);
 elements.globeCanvas.addEventListener("pointerup", endGlobeDrag);
@@ -2690,7 +2986,8 @@ async function init() {
   try {
     await Promise.all([
       loadDailyScheduleFor("flag", "./data/flag-daily-schedule.json"),
-      loadDailyScheduleFor("globe", "./data/globe-daily-schedule.json")
+      loadDailyScheduleFor("globe", "./data/globe-daily-schedule.json"),
+      loadDailyScheduleFor("capitals", "./data/capital-daily-schedule.json")
     ]);
   } catch (error) {
     console.error(error);
@@ -2722,12 +3019,18 @@ async function init() {
   state.gameType = savedSelection.gameType;
   state.playMode = savedSelection.playMode;
   state.atlasSet = savedSelection.atlasSet;
+  state.capitalsRegion = savedSelection.capitalsRegion;
+  state.hintsEnabled = savedSelection.hintsEnabled;
 
   if (state.gameType !== "atlas" && state.playMode === "daily") {
-    const track = state.gameType === "globe" ? "globe" : "flag";
+    const track = trackForGameType(state.gameType);
     if (!getScheduleForTrack(track)?.entries?.length) {
       state.playMode = "unlimited";
     }
+  }
+
+  if (state.gameType === "capitals" && !window.CAPITAL_HINTS) {
+    state.gameType = "flag";
   }
 
   if (state.gameType === "globe" && (!state.centroids.size || !state.globeFeatures.length)) {
