@@ -24,6 +24,9 @@ const GLOBE_ZOOM_MAX = 3.2;
 const GLOBE_ZOOM_BUTTON_STEP = 0.25;
 const ATLAS_ZOOM_MAX = 32;
 const ATLAS_ZOOM_BUTTON_FACTOR = 1.6;
+const ATLAS_DETAIL_ZOOM = 2;
+const ATLAS_OVERVIEW_TOLERANCE = 0.04;
+const ATLAS_PATH_CACHE_LIMIT = 4;
 const MAP_FEATURE_CODE_OVERRIDES = new Map([
   ["France", "fr"],
   ["Norway", "no"],
@@ -211,6 +214,8 @@ const state = {
   dailyDateKey: null,
   centroids: new Map(),
   atlasFeatures: [],
+  atlasOverviewFeatureByCode: new Map(),
+  atlasFeatureByCode: new Map(),
   marineFeatureByName: new Map(),
   globeFeatures: [],
   globeRotation: [-20, -18, 0],
@@ -239,7 +244,14 @@ const state = {
   lookalikeAnswered: false,
   lookalikeAdvanceTimer: null,
   atlasMapLayer: null,
+  atlasCountryPaths: null,
+  atlasTinyCountryMarkers: null,
   atlasMapPath: null,
+  atlasPathCache: new Map(),
+  atlasPathCacheEntry: null,
+  atlasDetailIdleCancel: null,
+  atlasMapDetail: null,
+  atlasRenderKey: null,
   atlasZoomFrame: null,
   atlasPendingTransform: null,
   palette: "sage",
@@ -741,6 +753,15 @@ async function loadWorldMap() {
     .map(normalizeMapFeatureWinding);
 
   state.atlasFeatures = mapFeatures.filter((feature) => feature.geometry.coordinates.length);
+  state.atlasFeatureByCode = new Map(
+    state.atlasFeatures.map((feature) => [getFeatureCode(feature), feature])
+  );
+  state.atlasOverviewFeatureByCode = new Map(
+    state.atlasFeatures.map((feature) => {
+      const overviewFeature = normalizeMapFeatureWinding(simplifyFeature(feature, ATLAS_OVERVIEW_TOLERANCE));
+      return [getFeatureCode(feature), overviewFeature.geometry.coordinates.length ? overviewFeature : feature];
+    })
+  );
   state.globeFeatures = mapFeatures
     .map((feature) => simplifyFeature(feature, 0.2))
     .map(normalizeMapFeatureWinding)
@@ -851,28 +872,32 @@ function simplifyLine(points, tolerance) {
     return points.slice();
   }
 
-  const first = points[0];
-  const last = points[points.length - 1];
-  let maxDistance = 0;
-  let maxIndex = 0;
+  const keep = new Uint8Array(points.length);
+  const segments = [[0, points.length - 1]];
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
 
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const distance = perpendicularDistance(points[index], first, last);
+  while (segments.length) {
+    const [start, end] = segments.pop();
+    let maxDistance = 0;
+    let maxIndex = 0;
 
-    if (distance > maxDistance) {
-      maxDistance = distance;
-      maxIndex = index;
+    for (let index = start + 1; index < end; index += 1) {
+      const distance = perpendicularDistance(points[index], points[start], points[end]);
+
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        maxIndex = index;
+      }
+    }
+
+    if (maxDistance > tolerance) {
+      keep[maxIndex] = 1;
+      segments.push([maxIndex, end], [start, maxIndex]);
     }
   }
 
-  if (maxDistance <= tolerance) {
-    return [first, last];
-  }
-
-  const left = simplifyLine(points.slice(0, maxIndex + 1), tolerance);
-  const right = simplifyLine(points.slice(maxIndex), tolerance);
-
-  return left.slice(0, -1).concat(right);
+  return points.filter((_, index) => keep[index]);
 }
 
 function perpendicularDistance(point, lineStart, lineEnd) {
@@ -1781,14 +1806,13 @@ function getAtlasPhysicalTargetCodes(place) {
 }
 
 function updateAtlasCountryMapStyles() {
-  if (!elements.atlasMap || typeof d3 === "undefined") {
+  if (!elements.atlasMap || !state.atlasCountryPaths || typeof d3 === "undefined") {
     return;
   }
 
   const completedById = new Map(state.guesses.map((guess) => [guess.id, guess]));
   const activeCodes = new Set(state.atlasQueue.map((place) => place.code));
-  d3.select(elements.atlasMap)
-    .selectAll(".atlas-country")
+  state.atlasCountryPaths
     .classed("remaining", (feature) => {
       const code = getFeatureCode(feature);
       return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code);
@@ -1797,21 +1821,22 @@ function updateAtlasCountryMapStyles() {
     .classed("revealed", (feature) => completedById.get(getFeatureCode(feature))?.correct === false)
     .classed("selected", (feature) => getFeatureCode(feature) === state.atlasSelectedCountryCode);
 
-  d3.select(elements.atlasMap)
-    .selectAll(".atlas-tiny-country-marker")
-    .classed("is-visible", (feature) => {
-      const code = getFeatureCode(feature);
-      return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code);
-    })
-    .classed("selected", (feature) => getFeatureCode(feature) === state.atlasSelectedCountryCode)
-    .attr("tabindex", (feature) => {
-      const code = getFeatureCode(feature);
-      return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code) ? 0 : -1;
-    })
-    .attr("aria-hidden", (feature) => {
-      const code = getFeatureCode(feature);
-      return String(!state.atlasShowRemaining || !activeCodes.has(code) || completedById.has(code));
-    });
+  if (state.atlasTinyCountryMarkers) {
+    state.atlasTinyCountryMarkers
+      .classed("is-visible", (feature) => {
+        const code = getFeatureCode(feature);
+        return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code);
+      })
+      .classed("selected", (feature) => getFeatureCode(feature) === state.atlasSelectedCountryCode)
+      .attr("tabindex", (feature) => {
+        const code = getFeatureCode(feature);
+        return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code) ? 0 : -1;
+      })
+      .attr("aria-hidden", (feature) => {
+        const code = getFeatureCode(feature);
+        return String(!state.atlasShowRemaining || !activeCodes.has(code) || completedById.has(code));
+      });
+  }
 
   const namedCount = state.guesses.filter((guess) => guess.correct).length;
   const completedCount = state.guesses.length;
@@ -1852,6 +1877,177 @@ function createAtlasProjection(featureCollection) {
     .translate([500, 310]);
 }
 
+function getAtlasOverviewFeature(feature) {
+  return state.atlasOverviewFeatureByCode.get(getFeatureCode(feature)) || feature;
+}
+
+function getAtlasProjectionCacheKey(isCountryMap, selectedFeatures) {
+  if (isCountryMap && state.atlasSet !== "world") {
+    return `region:${state.atlasSet}`;
+  }
+
+  return `natural:${selectedFeatures.map((feature) => getFeatureCode(feature) || "_").join(",")}`;
+}
+
+function getAtlasPathCacheEntry(cacheKey, featureCollection) {
+  let entry = state.atlasPathCache.get(cacheKey);
+
+  if (entry) {
+    state.atlasPathCache.delete(cacheKey);
+    state.atlasPathCache.set(cacheKey, entry);
+    return entry;
+  }
+
+  const projection = createAtlasProjection(featureCollection);
+  entry = {
+    projection,
+    path: d3.geoPath(projection),
+    overviewPaths: new Map(),
+    fullPaths: new Map(),
+    overviewBounds: new Map(),
+    featureMetrics: new Map()
+  };
+  state.atlasPathCache.set(cacheKey, entry);
+
+  while (state.atlasPathCache.size > ATLAS_PATH_CACHE_LIMIT) {
+    state.atlasPathCache.delete(state.atlasPathCache.keys().next().value);
+  }
+
+  return entry;
+}
+
+function getAtlasPathData(feature, detail, entry = state.atlasPathCacheEntry) {
+  const paths = detail === "full" ? entry.fullPaths : entry.overviewPaths;
+
+  if (!paths.has(feature)) {
+    paths.set(feature, entry.path(detail === "full" ? feature : getAtlasOverviewFeature(feature)));
+  }
+
+  return paths.get(feature);
+}
+
+function getAtlasOverviewBounds(feature, entry) {
+  if (!entry.overviewBounds.has(feature)) {
+    entry.overviewBounds.set(feature, entry.path.bounds(getAtlasOverviewFeature(feature)));
+  }
+
+  return entry.overviewBounds.get(feature);
+}
+
+function getAtlasFeatureMetrics(feature, entry = state.atlasPathCacheEntry) {
+  if (!entry.featureMetrics.has(feature)) {
+    entry.featureMetrics.set(feature, {
+      bounds: entry.path.bounds(feature),
+      centroid: entry.path.centroid(feature),
+      area: entry.path.area(feature)
+    });
+  }
+
+  return entry.featureMetrics.get(feature);
+}
+
+function cancelAtlasDetailPreparation() {
+  if (state.atlasDetailIdleCancel) {
+    state.atlasDetailIdleCancel();
+    state.atlasDetailIdleCancel = null;
+  }
+}
+
+function scheduleAtlasIdle(callback) {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(callback, { timeout: 500 });
+    return () => window.cancelIdleCallback(id);
+  }
+
+  const id = window.setTimeout(() => {
+    const startedAt = performance.now();
+    callback({ timeRemaining: () => Math.max(0, 8 - (performance.now() - startedAt)) });
+  }, 0);
+  return () => window.clearTimeout(id);
+}
+
+function prepareAtlasFullDetail(features, entry) {
+  cancelAtlasDetailPreparation();
+  let index = 0;
+
+  const prepareChunk = (deadline) => {
+    state.atlasDetailIdleCancel = null;
+    const startedAt = performance.now();
+
+    do {
+      getAtlasPathData(features[index], "full", entry);
+      index += 1;
+    } while (
+      index < features.length
+      && (deadline.timeRemaining() > 3 || performance.now() - startedAt < 6)
+    );
+
+    if (index < features.length) {
+      state.atlasDetailIdleCancel = scheduleAtlasIdle(prepareChunk);
+    }
+  };
+
+  state.atlasDetailIdleCancel = scheduleAtlasIdle(prepareChunk);
+}
+
+function renderAtlasPhysicalHighlight(mapLayer, projection, path) {
+  mapLayer.select(".atlas-target-layer").remove();
+  const targetLayer = mapLayer
+    .insert("g", ".atlas-country-layer")
+    .attr("class", "atlas-target-layer");
+  const marineFeatures = state.target?.kind === "waters"
+    ? state.marineFeatureByName.get(normalize(state.target.name)) || []
+    : [];
+
+  if (marineFeatures.length) {
+    targetLayer
+      .selectAll("path")
+      .data(marineFeatures)
+      .join("path")
+      .attr("class", "atlas-water-highlight")
+      .attr("d", path);
+    return;
+  }
+
+  if (state.target?.coordinates) {
+    const [x, y] = projection(state.target.coordinates);
+    const [rx, ry, angle] = ATLAS_WATER_FALLBACK_AREAS.get(state.target.id) || [16, 11, 0];
+    targetLayer
+      .append("ellipse")
+      .attr("class", "atlas-water-highlight atlas-water-highlight-fallback")
+      .attr("cx", x)
+      .attr("cy", y)
+      .attr("rx", rx)
+      .attr("ry", ry)
+      .attr("transform", `rotate(${angle} ${x} ${y})`);
+  }
+}
+
+function updateAtlasPhysicalCountryStyles(activeCodes) {
+  state.atlasCountryPaths
+    .attr("class", (feature) => activeCodes.has(getFeatureCode(feature))
+      ? "atlas-country atlas-physical-target"
+      : "atlas-country atlas-physical-base");
+  state.atlasCountryPaths
+    .filter((feature) => activeCodes.has(getFeatureCode(feature)))
+    .raise();
+}
+
+function updateAtlasMapDetail(transform = d3.zoomIdentity) {
+  if (!state.atlasCountryPaths || !state.atlasPathCacheEntry) {
+    return;
+  }
+
+  const detail = transform.k >= ATLAS_DETAIL_ZOOM ? "full" : "overview";
+  if (state.atlasMapDetail === detail) {
+    return;
+  }
+
+  state.atlasMapDetail = detail;
+  state.atlasCountryPaths.attr("d", (feature) => getAtlasPathData(feature, detail));
+  elements.atlasMap.dataset.detail = detail;
+}
+
 function renderAtlasCountryMap() {
   if (!elements.atlasMap || !state.atlasFeatures.length || typeof d3 === "undefined") {
     return;
@@ -1865,15 +2061,36 @@ function renderAtlasCountryMap() {
     ? state.atlasFeatures.filter((feature) => activeCodes.has(getFeatureCode(feature)))
     : state.atlasFeatures;
   const featureCollection = { type: "FeatureCollection", features: selectedFeatures };
-  const projection = createAtlasProjection(featureCollection);
-  const path = d3.geoPath(projection);
+  const pathCacheEntry = getAtlasPathCacheEntry(
+    getAtlasProjectionCacheKey(isCountryMap, selectedFeatures),
+    featureCollection
+  );
+  const { projection, path } = pathCacheEntry;
   const svg = d3.select(elements.atlasMap);
+  const renderKey = `${isCountryMap ? "countries" : "physical"}:${getAtlasProjectionCacheKey(isCountryMap, selectedFeatures)}`;
+
+  if (!isCountryMap && state.atlasRenderKey === renderKey && state.atlasMapLayer && state.atlasCountryPaths) {
+    svg.interrupt();
+    renderAtlasPhysicalHighlight(state.atlasMapLayer, projection, path);
+    updateAtlasPhysicalCountryStyles(activeCodes);
+    elements.atlasPosition.textContent = `${state.atlasIndex + 1} / ${state.atlasQueue.length}`;
+    elements.atlasMapSelection.textContent = "Name the highlighted area";
+    elements.giveUpButton.disabled = state.finished || state.atlasAnswered;
+    focusAtlasTarget();
+    return;
+  }
 
   if (state.atlasZoomFrame !== null) {
     window.cancelAnimationFrame(state.atlasZoomFrame);
     state.atlasZoomFrame = null;
   }
   state.atlasPendingTransform = null;
+  state.atlasMapDetail = null;
+  state.atlasCountryPaths = null;
+  state.atlasTinyCountryMarkers = null;
+  state.atlasPathCacheEntry = pathCacheEntry;
+  state.atlasRenderKey = renderKey;
+  cancelAtlasDetailPreparation();
   elements.atlasMap.classList.remove("is-interacting");
   svg.interrupt();
   svg.selectAll("*").remove();
@@ -1888,42 +2105,27 @@ function renderAtlasCountryMap() {
   state.atlasMapPath = path;
 
   if (!isCountryMap && state.target) {
-    const marineFeatures = state.target.kind === "waters"
-      ? state.marineFeatureByName.get(normalize(state.target.name)) || []
-      : [];
-    if (marineFeatures.length) {
-      mapLayer
-        .append("g")
-        .attr("class", "atlas-water-highlight-layer")
-        .selectAll("path")
-        .data(marineFeatures)
-        .join("path")
-        .attr("class", "atlas-water-highlight")
-        .attr("d", path);
-    } else if (state.target.coordinates) {
-      const [x, y] = projection(state.target.coordinates);
-      const [rx, ry, angle] = ATLAS_WATER_FALLBACK_AREAS.get(state.target.id) || [16, 11, 0];
-      mapLayer
-        .append("ellipse")
-        .attr("class", "atlas-water-highlight atlas-water-highlight-fallback")
-        .attr("cx", x)
-        .attr("cy", y)
-        .attr("rx", rx)
-        .attr("ry", ry)
-        .attr("transform", `rotate(${angle} ${x} ${y})`);
-    }
+    renderAtlasPhysicalHighlight(mapLayer, projection, path);
   }
 
-  const orderedFeatures = [...state.atlasFeatures].sort((a, b) =>
+  const visibleFeatures = isCountryMap && state.atlasSet !== "world"
+    ? state.atlasFeatures.filter((feature) => {
+      if (activeCodes.has(getFeatureCode(feature))) {
+        return true;
+      }
+      const [[left, top], [right, bottom]] = getAtlasOverviewBounds(feature, pathCacheEntry);
+      return right >= -80 && left <= 1080 && bottom >= -80 && top <= 700;
+    })
+    : state.atlasFeatures;
+  const orderedFeatures = [...visibleFeatures].sort((a, b) =>
     Number(activeCodes.has(getFeatureCode(a))) - Number(activeCodes.has(getFeatureCode(b)))
   );
   const countryLayer = mapLayer.append("g").attr("class", "atlas-country-layer");
 
-  countryLayer
+  state.atlasCountryPaths = countryLayer
     .selectAll("path")
     .data(orderedFeatures)
     .join("path")
-    .attr("d", path)
     .attr("data-country-code", (feature) => getFeatureCode(feature) || "")
     .attr("class", (feature) => {
       const isActive = activeCodes.has(getFeatureCode(feature));
@@ -1931,42 +2133,48 @@ function renderAtlasCountryMap() {
         return isActive ? "atlas-country" : "atlas-country outside-set";
       }
       return isActive ? "atlas-country atlas-physical-target" : "atlas-country atlas-physical-base";
-    })
-    .on("click", (event, feature) => {
-      if (!isCountryMap || event.defaultPrevented) {
-        return;
-      }
-
-      selectAtlasCountry(getFeatureCode(feature));
     });
+  countryLayer.on("click", (event) => {
+    if (!isCountryMap || event.defaultPrevented || !event.target.classList.contains("atlas-country")) {
+      return;
+    }
+
+    selectAtlasCountry(getFeatureCode(event.target.__data__));
+  });
+  updateAtlasMapDetail();
+  prepareAtlasFullDetail(orderedFeatures, pathCacheEntry);
 
   if (isCountryMap) {
     const tinyFeatures = selectedFeatures.filter((feature) => {
-      const [[left, top], [right, bottom]] = path.bounds(feature);
-      return Math.max(right - left, bottom - top) < 6 || path.area(feature) < 10;
+      const { bounds: [[left, top], [right, bottom]], area } = getAtlasFeatureMetrics(feature, pathCacheEntry);
+      return Math.max(right - left, bottom - top) < 6 || area < 10;
     });
     const tinyCountryLayer = mapLayer.append("g").attr("class", "atlas-tiny-country-layer");
 
-    tinyCountryLayer
+    state.atlasTinyCountryMarkers = tinyCountryLayer
       .selectAll("circle")
       .data(tinyFeatures)
       .join("circle")
       .attr("class", "atlas-tiny-country-marker")
       .attr("data-country-code", (feature) => getFeatureCode(feature) || "")
-      .attr("cx", (feature) => path.centroid(feature)[0])
-      .attr("cy", (feature) => path.centroid(feature)[1])
+      .attr("cx", (feature) => getAtlasFeatureMetrics(feature, pathCacheEntry).centroid[0])
+      .attr("cy", (feature) => getAtlasFeatureMetrics(feature, pathCacheEntry).centroid[1])
       .attr("r", 7)
       .attr("role", "button")
-      .attr("aria-label", (_, index) => `Highlighted unentered country marker ${index + 1}`)
-      .on("click", (event, feature) => {
-        if (!event.defaultPrevented) {
-          selectAtlasCountry(getFeatureCode(feature));
+      .attr("aria-label", (_, index) => `Highlighted unentered country marker ${index + 1}`);
+    tinyCountryLayer
+      .on("click", (event) => {
+        if (!event.defaultPrevented && event.target.classList.contains("atlas-tiny-country-marker")) {
+          selectAtlasCountry(getFeatureCode(event.target.__data__));
         }
       })
-      .on("keydown", (event, feature) => {
-        if (event.key === "Enter" || event.key === " ") {
+      .on("keydown", (event) => {
+        if (
+          (event.key === "Enter" || event.key === " ")
+          && event.target.classList.contains("atlas-tiny-country-marker")
+        ) {
           event.preventDefault();
-          selectAtlasCountry(getFeatureCode(feature));
+          selectAtlasCountry(getFeatureCode(event.target.__data__));
         }
       });
   }
@@ -1994,11 +2202,14 @@ function renderAtlasCountryMap() {
         }
 
         mapLayer.attr("transform", transform);
-        mapLayer.selectAll(".atlas-tiny-country-marker").attr("r", 7 / transform.k);
+        if (state.atlasTinyCountryMarkers) {
+          state.atlasTinyCountryMarkers.attr("r", 7 / transform.k);
+        }
       });
     })
     .on("end", () => {
       elements.atlasMap.classList.remove("is-interacting");
+      updateAtlasMapDetail(d3.zoomTransform(elements.atlasMap));
     });
 
   state.atlasZoomBehavior = zoomBehavior;
@@ -2063,12 +2274,12 @@ function panAtlasToCountry(code) {
     return;
   }
 
-  const feature = state.atlasFeatures.find((item) => getFeatureCode(item) === code);
+  const feature = state.atlasFeatureByCode.get(code);
   if (!feature) {
     return;
   }
 
-  const [countryX, countryY] = state.atlasMapPath.centroid(feature);
+  const [countryX, countryY] = getAtlasFeatureMetrics(feature).centroid;
   if (!Number.isFinite(countryX) || !Number.isFinite(countryY)) {
     return;
   }

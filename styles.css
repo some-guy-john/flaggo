@@ -422,6 +422,7 @@ button {
   border-radius: var(--radius-lg);
   background: #c8d5ce;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  contain: layout paint;
 }
 
 .atlas-map {
@@ -479,6 +480,11 @@ button {
 .atlas-map.is-interacting .atlas-country {
   transition: none;
   shape-rendering: optimizeSpeed;
+  filter: none;
+}
+
+.atlas-map[data-detail="full"] .atlas-country {
+  shape-rendering: geometricPrecision;
 }
 
 .atlas-country.atlas-physical-base {
@@ -509,6 +515,8 @@ button {
 .atlas-country.outside-set {
   fill: rgba(232, 235, 228, 0.5);
   stroke: rgba(44, 48, 45, 0.14);
+  pointer-events: none;
+  cursor: default;
 }
 
 .atlas-country.remaining {
