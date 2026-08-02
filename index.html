@@ -20,6 +20,7 @@
         <button id="globle-game-button" class="mode-button" type="button">Globle</button>
         <button id="atlas-game-button" class="mode-button" type="button">Map</button>
         <button id="capitals-game-button" class="mode-button" type="button">Capitals</button>
+        <button id="lookalike-game-button" class="mode-button" type="button">Tricky</button>
       </nav>
 
       <div class="header-actions">
@@ -62,7 +63,7 @@
                 id="atlas-map"
                 class="atlas-map"
                 viewBox="0 0 1000 620"
-                role="img"
+                role="group"
                 aria-label="Interactive map. Zoom and pan while naming countries from memory."
               ></svg>
               <div id="atlas-map-selection" class="atlas-map-selection" aria-live="polite">
@@ -115,6 +116,14 @@
           <div class="flag-frame">
             <img id="flag-image" class="flag-image" alt="Mystery country flag">
             <div id="flag-mask" class="flag-mask" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div id="lookalike-stage" class="lookalike-stage stage-panel is-hidden">
+          <div class="lookalike-panel">
+            <span class="lookalike-eyebrow">Which flag belongs to</span>
+            <h2 id="lookalike-country-name" class="lookalike-country-name"></h2>
+            <div id="lookalike-flags-grid" class="lookalike-flags-grid" role="group" aria-label="Pick the correct flag"></div>
           </div>
         </div>
 
@@ -279,11 +288,19 @@
         <label class="setting-toggle"><input id="include-taiwan" type="checkbox"> <span>Include Taiwan</span></label>
         <label class="setting-toggle"><input id="include-kosovo" type="checkbox"> <span>Include Kosovo</span></label>
       </section>
+      <section class="sound-settings" aria-labelledby="sound-title">
+        <div>
+          <p class="settings-section-label" id="sound-title">Sound</p>
+          <p class="settings-section-help">A soft ping on correct answers.</p>
+        </div>
+        <label class="setting-toggle"><input id="sound-toggle" type="checkbox"> <span>Correct answer sound</span></label>
+      </section>
     </div>
   </div>
 
 <script src="countries.js"></script>
   <script src="data/capitals-data.js"></script>
+  <script src="data/lookalike-groups.js"></script>
   <script src="vendor/d3.min.js"></script>
   <script src="script.js"></script>
 </body>

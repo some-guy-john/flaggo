@@ -22,6 +22,8 @@ const HEAT_BANDS_KM = {
 const GLOBE_ZOOM_MIN = 0.7;
 const GLOBE_ZOOM_MAX = 3.2;
 const GLOBE_ZOOM_BUTTON_STEP = 0.25;
+const ATLAS_ZOOM_MAX = 32;
+const ATLAS_ZOOM_BUTTON_FACTOR = 1.6;
 const MAP_FEATURE_CODE_OVERRIDES = new Map([
   ["France", "fr"],
   ["Norway", "no"],
@@ -231,12 +233,18 @@ const state = {
   atlasShowRemaining: false,
   atlasSelectedCountryCode: null,
   atlasZoomBehavior: null,
+  lookalikeGroup: null,
+  lookalikeTarget: null,
+  lookalikeScore: { correct: 0, total: 0, streak: 0, bestStreak: 0 },
+  lookalikeAnswered: false,
+  lookalikeAdvanceTimer: null,
   atlasMapLayer: null,
   atlasMapPath: null,
   atlasZoomFrame: null,
   atlasPendingTransform: null,
   palette: "sage",
   siteZoom: 1,
+  soundEnabled: true,
   recognitionOptions: { taiwan: false, kosovo: false },
   timerStartedAt: null,
   timerInterval: null
@@ -248,6 +256,7 @@ const elements = {
   globleGameButton: document.querySelector("#globle-game-button"),
   atlasGameButton: document.querySelector("#atlas-game-button"),
   capitalsGameButton: document.querySelector("#capitals-game-button"),
+  lookalikeGameButton: document.querySelector("#lookalike-game-button"),
   atlasSetControl: document.querySelector("#atlas-set-control"),
   capitalsRegionControl: document.querySelector("#capitals-region-control"),
   capitalsRegionSelect: document.querySelector("#capitals-region-select"),
@@ -255,6 +264,9 @@ const elements = {
   capitalCountryName: document.querySelector("#capital-country-name"),
   capitalFlagFrame: document.querySelector("#capital-flag-frame"),
   capitalFlagImage: document.querySelector("#capital-flag-image"),
+  lookalikeStage: document.querySelector("#lookalike-stage"),
+  lookalikeCountryName: document.querySelector("#lookalike-country-name"),
+  lookalikeFlagsGrid: document.querySelector("#lookalike-flags-grid"),
   hintsSwitch: document.querySelector("#hints-switch"),
   hintsOffButton: document.querySelector("#hints-off-button"),
   hintsOnButton: document.querySelector("#hints-on-button"),
@@ -315,7 +327,8 @@ const elements = {
   siteZoomValue: document.querySelector("#site-zoom-value"),
   gameTimer: document.querySelector("#game-timer"),
   includeTaiwan: document.querySelector("#include-taiwan"),
-  includeKosovo: document.querySelector("#include-kosovo")
+  includeKosovo: document.querySelector("#include-kosovo"),
+  soundToggle: document.querySelector("#sound-toggle")
 };
 
 const confetti = {
@@ -362,6 +375,40 @@ function initPalette() {
   const saved = localStorage.getItem('flaggo-palette');
   const name = PALETTES[saved] ? saved : 'sage';
   applyPalette(name);
+}
+
+function playCorrectSound() {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.value = 0.15;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
+    osc.connect(gain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.12);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1320, ctx.currentTime + 0.1);
+    osc2.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.16);
+    const gain2 = ctx.createGain();
+    gain2.gain.value = 0.08;
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.1);
+    osc2.stop(ctx.currentTime + 0.24);
+  } catch (_) {}
+}
+
+function initSoundSettings() {
+  const saved = localStorage.getItem("flaggo-sound");
+  state.soundEnabled = saved !== "false";
 }
 
 function initSettingsModal() {
@@ -460,7 +507,7 @@ function getSavedSelection() {
     }
 
     const parsed = JSON.parse(raw);
-    const gameType = ["flag", "globe", "atlas", "capitals"].includes(parsed?.gameType) ? parsed.gameType : "flag";
+    const gameType = ["flag", "globe", "atlas", "capitals", "lookalike"].includes(parsed?.gameType) ? parsed.gameType : "flag";
     const playMode = parsed?.playMode === "unlimited" ? "unlimited" : "daily";
     const atlasSet = ATLAS_SET_IDS.has(parsed?.atlasSet) ? parsed.atlasSet : "world";
     const capitalsRegion = CAPITALS_REGIONS.has(parsed?.capitalsRegion) ? parsed.capitalsRegion : "world";
@@ -640,6 +687,21 @@ function initRecognitionOptions() {
   });
 }
 
+function initSoundToggle() {
+  const sync = () => {
+    elements.soundToggle.checked = state.soundEnabled;
+  };
+  const save = () => {
+    localStorage.setItem("flaggo-sound", state.soundEnabled ? "true" : "false");
+  };
+
+  sync();
+  elements.soundToggle.addEventListener("change", (event) => {
+    state.soundEnabled = event.target.checked;
+    save();
+  });
+}
+
 function formatElapsedTime(milliseconds) {
   const elapsedSeconds = Math.floor(milliseconds / 1000);
   const minutes = Math.floor(elapsedSeconds / 60);
@@ -678,13 +740,7 @@ async function loadWorldMap() {
     .filter((feature) => feature?.properties?.["ISO3166-1-Alpha-2"] && feature?.geometry)
     .map(normalizeMapFeatureWinding);
 
-  state.atlasFeatures = mapFeatures
-    .map((feature) => {
-      const simplified = simplifyFeature(feature, 0.1);
-      return simplified.geometry.coordinates.length ? simplified : feature;
-    })
-    .map(normalizeMapFeatureWinding)
-    .filter((feature) => feature.geometry.coordinates.length);
+  state.atlasFeatures = mapFeatures.filter((feature) => feature.geometry.coordinates.length);
   state.globeFeatures = mapFeatures
     .map((feature) => simplifyFeature(feature, 0.2))
     .map(normalizeMapFeatureWinding)
@@ -993,6 +1049,7 @@ function submitCapitalGuess(country) {
   if (correct) {
     finishRound(`Yea, it's done. You named the capital.`, "success");
     launchConfetti();
+    playCorrectSound();
     return;
   }
 
@@ -1262,9 +1319,10 @@ function renderGuesses() {
   elements.guessList.innerHTML = "";
   const isGlobe = state.gameType === "globe";
   const isAtlas = state.gameType === "atlas";
+  const isLookalike = state.gameType === "lookalike";
   elements.guessList.classList.toggle("globle-board", isGlobe);
   elements.guessList.classList.toggle("atlas-board", isAtlas);
-  elements.guessList.classList.toggle("round-over", !isGlobe && !isAtlas && state.finished);
+  elements.guessList.classList.toggle("round-over", !isGlobe && !isAtlas && !isLookalike && state.finished);
   renderSidebarHints();
 
   if (isAtlas) {
@@ -1346,6 +1404,33 @@ function renderGuesses() {
       elements.guessList.appendChild(item);
     });
 
+    return;
+  }
+
+  if (isLookalike) {
+    updateLookalikeScore();
+
+    if (!state.guesses.length) {
+      const emptyItem = document.createElement("li");
+      emptyItem.className = "guess-item empty";
+      emptyItem.innerHTML = `
+        <span class="guess-label">Pick a flag</span>
+        <span class="guess-result">Click the flag that matches the country name shown.</span>
+      `;
+      elements.guessList.appendChild(emptyItem);
+      return;
+    }
+
+    const recentGuesses = [...state.guesses].reverse().slice(0, 10);
+    recentGuesses.forEach((guess) => {
+      const item = document.createElement("li");
+      item.className = `guess-item ${guess.correct ? "correct" : "incorrect"}`;
+      item.innerHTML = `
+        <span class="guess-label">${guess.name}</span>
+        <span class="guess-result">${guess.correct ? "Correct" : "Wrong"}</span>
+      `;
+      elements.guessList.appendChild(item);
+    });
     return;
   }
 
@@ -1712,6 +1797,22 @@ function updateAtlasCountryMapStyles() {
     .classed("revealed", (feature) => completedById.get(getFeatureCode(feature))?.correct === false)
     .classed("selected", (feature) => getFeatureCode(feature) === state.atlasSelectedCountryCode);
 
+  d3.select(elements.atlasMap)
+    .selectAll(".atlas-tiny-country-marker")
+    .classed("is-visible", (feature) => {
+      const code = getFeatureCode(feature);
+      return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code);
+    })
+    .classed("selected", (feature) => getFeatureCode(feature) === state.atlasSelectedCountryCode)
+    .attr("tabindex", (feature) => {
+      const code = getFeatureCode(feature);
+      return state.atlasShowRemaining && activeCodes.has(code) && !completedById.has(code) ? 0 : -1;
+    })
+    .attr("aria-hidden", (feature) => {
+      const code = getFeatureCode(feature);
+      return String(!state.atlasShowRemaining || !activeCodes.has(code) || completedById.has(code));
+    });
+
   const namedCount = state.guesses.filter((guess) => guess.correct).length;
   const completedCount = state.guesses.length;
   elements.atlasPosition.textContent = `${completedCount} / ${state.atlasQueue.length} complete`;
@@ -1774,6 +1875,7 @@ function renderAtlasCountryMap() {
   }
   state.atlasPendingTransform = null;
   elements.atlasMap.classList.remove("is-interacting");
+  svg.interrupt();
   svg.selectAll("*").remove();
 
   svg.append("rect")
@@ -1838,8 +1940,39 @@ function renderAtlasCountryMap() {
       selectAtlasCountry(getFeatureCode(feature));
     });
 
+  if (isCountryMap) {
+    const tinyFeatures = selectedFeatures.filter((feature) => {
+      const [[left, top], [right, bottom]] = path.bounds(feature);
+      return Math.max(right - left, bottom - top) < 6 || path.area(feature) < 10;
+    });
+    const tinyCountryLayer = mapLayer.append("g").attr("class", "atlas-tiny-country-layer");
+
+    tinyCountryLayer
+      .selectAll("circle")
+      .data(tinyFeatures)
+      .join("circle")
+      .attr("class", "atlas-tiny-country-marker")
+      .attr("data-country-code", (feature) => getFeatureCode(feature) || "")
+      .attr("cx", (feature) => path.centroid(feature)[0])
+      .attr("cy", (feature) => path.centroid(feature)[1])
+      .attr("r", 7)
+      .attr("role", "button")
+      .attr("aria-label", (_, index) => `Highlighted unentered country marker ${index + 1}`)
+      .on("click", (event, feature) => {
+        if (!event.defaultPrevented) {
+          selectAtlasCountry(getFeatureCode(feature));
+        }
+      })
+      .on("keydown", (event, feature) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectAtlasCountry(getFeatureCode(feature));
+        }
+      });
+  }
+
   const zoomBehavior = d3.zoom()
-    .scaleExtent([1, 10])
+    .scaleExtent([1, ATLAS_ZOOM_MAX])
     .extent([[0, 0], [1000, 620]])
     .translateExtent([[-120, -90], [1120, 710]])
     .on("start", () => {
@@ -1861,6 +1994,7 @@ function renderAtlasCountryMap() {
         }
 
         mapLayer.attr("transform", transform);
+        mapLayer.selectAll(".atlas-tiny-country-marker").attr("r", 7 / transform.k);
       });
     })
     .on("end", () => {
@@ -1903,7 +2037,7 @@ function focusAtlasTarget() {
 }
 
 function adjustAtlasZoom(factor) {
-  if (!isAtlasCountrySet() || !state.atlasZoomBehavior) {
+  if (!state.atlasZoomBehavior) {
     return;
   }
 
@@ -2007,6 +2141,7 @@ function updateModeUI() {
   const isGlobe = state.gameType === "globe";
   const isAtlas = state.gameType === "atlas";
   const isCapitals = state.gameType === "capitals";
+  const isLookalike = state.gameType === "lookalike";
   const isDaily = state.playMode === "daily";
   const isUnlimited = state.playMode === "unlimited";
   const atlasSet = getAtlasSetDefinition();
@@ -2016,9 +2151,10 @@ function updateModeUI() {
   elements.globleGameButton.classList.toggle("active", isGlobe);
   elements.atlasGameButton.classList.toggle("active", isAtlas);
   elements.capitalsGameButton.classList.toggle("active", isCapitals);
+  elements.lookalikeGameButton.classList.toggle("active", isLookalike);
   elements.dailyModeButton.classList.toggle("active", isDaily);
   elements.unlimitedModeButton.classList.toggle("active", isUnlimited);
-  elements.playModeSwitch.classList.toggle("is-hidden", isAtlas);
+  elements.playModeSwitch.classList.toggle("is-hidden", isAtlas || isLookalike);
   elements.atlasSetControl.classList.toggle("is-hidden", !isAtlas);
   elements.atlasSetSelect.value = state.atlasSet;
   elements.capitalsRegionControl.classList.toggle("is-hidden", !isCapitals || isDaily);
@@ -2033,18 +2169,22 @@ function updateModeUI() {
       ? "Guess the country from the globe."
       : isCapitals
         ? "Name the capital from the country and its flag."
-        : "Guess the country from its flag.";
+        : isLookalike
+          ? "Pick the right flag from the lookalikes."
+          : "Guess the country from its flag.";
   elements.roundTitle.textContent = isAtlas
     ? atlasSet.id === "world" ? `All ${countries.length} countries` : atlasSet.label
     : isGlobe
       ? isDaily ? "Daily globe mystery country" : "Unlimited globe practice"
       : isCapitals
         ? isDaily ? "Daily shared capital" : "Unlimited capitals practice"
-        : isDaily ? "Daily shared flag" : "Unlimited flag practice";
-  elements.guessesTitle.textContent = isAtlas ? "Set progress" : isGlobe ? "Proximity board" : "Guess board";
+        : isLookalike
+          ? "Unlimited lookalike practice"
+          : isDaily ? "Daily shared flag" : "Unlimited flag practice";
+  elements.guessesTitle.textContent = isAtlas ? "Set progress" : isGlobe ? "Proximity board" : isLookalike ? "Pick history" : "Guess board";
   elements.newGameButton.textContent = isAtlas
     ? isAtlasCountryMap ? "Restart map" : state.finished ? "Restart set" : "Next map"
-    : isGlobe ? "New globe" : isCapitals ? "New capitals" : "New flag";
+    : isLookalike ? "New set" : isGlobe ? "New globe" : isCapitals ? "New capitals" : "New flag";
   elements.newGameButton.classList.toggle(
     "is-hidden",
     isAtlas ? isAtlasCountryMap ? !state.finished : !state.atlasAnswered && !state.finished : isDaily
@@ -2068,10 +2208,12 @@ function updateModeUI() {
   elements.gameCenter.classList.toggle("globle-layout", isGlobe);
   elements.gameCenter.classList.toggle("atlas-layout", isAtlas);
   elements.gameCenter.classList.toggle("capitals-layout", isCapitals);
+  elements.gameCenter.classList.toggle("lookalike-layout", isLookalike);
   elements.flagStage.classList.toggle("is-hidden", !isFlag);
   elements.globleStage.classList.toggle("is-hidden", !isGlobe);
   elements.atlasStage.classList.toggle("is-hidden", !isAtlas);
   elements.capitalStage.classList.toggle("is-hidden", !isCapitals);
+  elements.lookalikeStage.classList.toggle("is-hidden", !isLookalike);
 
   elements.flagImage.classList.toggle("is-hidden", !isFlag);
   elements.flagMask.classList.toggle("is-hidden", !isFlag);
@@ -2079,8 +2221,15 @@ function updateModeUI() {
   elements.globlePanel.setAttribute("aria-hidden", String(!isGlobe));
   elements.atlasStage.setAttribute("aria-hidden", String(!isAtlas));
   elements.capitalStage.setAttribute("aria-hidden", String(!isCapitals));
+  elements.lookalikeStage.setAttribute("aria-hidden", String(!isLookalike));
   elements.atlasShowRemainingButton.classList.toggle("is-hidden", !isAtlasCountryMap);
   elements.atlasRevealSelectedButton.classList.toggle("is-hidden", !isAtlasCountryMap);
+
+  const guessFormSlot = document.querySelector("#guess-form-slot");
+  if (guessFormSlot) {
+    guessFormSlot.classList.toggle("is-hidden", isLookalike);
+  }
+  elements.inputHint.classList.toggle("is-hidden", isLookalike);
 }
 function finishRound(message, tone) {
   state.finished = true;
@@ -2088,7 +2237,7 @@ function finishRound(message, tone) {
   elements.countryInput.value = "";
   clearSpellingCorrection();
 
-  if (state.gameType !== "globe" && state.gameType !== "capitals") {
+  if (state.gameType !== "globe" && state.gameType !== "capitals" && state.gameType !== "lookalike") {
     revealAllTiles();
   }
 
@@ -2190,6 +2339,8 @@ function completeAtlasSet() {
   state.finished = true;
   stopGameTimer();
   state.atlasAnswered = true;
+  state.atlasShowRemaining = false;
+  state.atlasSelectedCountryCode = null;
   elements.countryInput.value = "";
   setRoundInteractivity(false);
   updateModeUI();
@@ -2265,8 +2416,6 @@ function submitAtlasCountryGuess(rawValue) {
     return;
   }
 
-  panAtlasToCountry(country.code);
-
   const place = getAtlasCountryPlaceByCode(country.code);
   if (!place) {
     const setName = getAtlasMapHeading().replace(/ map$/i, "");
@@ -2280,6 +2429,8 @@ function submitAtlasCountryGuess(rawValue) {
     return;
   }
 
+  panAtlasToCountry(country.code);
+
   state.guesses.push({
     name: place.name,
     id: place.id,
@@ -2287,6 +2438,9 @@ function submitAtlasCountryGuess(rawValue) {
     number: state.guesses.length + 1,
     correct: true
   });
+  if (state.atlasSelectedCountryCode === country.code) {
+    state.atlasSelectedCountryCode = null;
+  }
   state.target = null;
   elements.countryInput.value = "";
   clearSpellingCorrection();
@@ -2395,6 +2549,8 @@ function giveUpAtlasCountrySet() {
   state.finished = true;
   stopGameTimer();
   state.atlasAnswered = true;
+  state.atlasShowRemaining = false;
+  state.atlasSelectedCountryCode = null;
   state.target = null;
   elements.countryInput.value = "";
   clearCountrySuggestions();
@@ -2419,6 +2575,7 @@ function submitFlagGuess(country) {
   if (correct) {
     finishRound(`Yea, it's done. You nailed it. That flag is ${state.target.name}.`, "success");
     launchConfetti();
+    playCorrectSound();
     return;
   }
 
@@ -2445,6 +2602,7 @@ function submitGlobeGuess(country) {
     rotateGlobeToCountry(country.code);
     finishRound(`Yea, it's done. You found the country: ${state.target.name}.`, "success");
     launchConfetti();
+    playCorrectSound();
     return;
   }
 
@@ -2486,6 +2644,10 @@ function submitGuess(rawValue) {
     return;
   }
 
+  if (state.gameType === "lookalike") {
+    return;
+  }
+
   const country = findCountry(rawValue);
 
   if (!country) {
@@ -2522,6 +2684,37 @@ function giveUp() {
 
   if (state.gameType === "atlas") {
     revealAtlasAnswer();
+    return;
+  }
+
+  if (state.gameType === "lookalike") {
+    state.finished = true;
+    state.lookalikeAnswered = true;
+    if (state.lookalikeAdvanceTimer !== null) {
+      window.clearTimeout(state.lookalikeAdvanceTimer);
+      state.lookalikeAdvanceTimer = null;
+    }
+    stopGameTimer();
+    setRoundInteractivity(false);
+    state.lookalikeScore.streak = 0;
+    state.guesses.push({
+      name: state.target.name,
+      code: state.target.code,
+      correct: false
+    });
+    const allCards = elements.lookalikeFlagsGrid.querySelectorAll(".lookalike-flag-card");
+    allCards.forEach((card) => {
+      const cardImg = card.querySelector("img");
+      if (cardImg) {
+        const cardCode = cardImg.src.split("/").pop().replace(".png", "");
+        if (cardCode === state.target.code) {
+          card.classList.add("correct");
+        }
+      }
+    });
+    updateStatus(`It was ${state.target.name}.`, "failure");
+    updateModeUI();
+    renderGuesses();
     return;
   }
 
@@ -2630,11 +2823,25 @@ function getTargetCountryForSelection() {
 
 function startGame() {
   clearAtlasAdvanceTimer();
+  if (state.lookalikeAdvanceTimer !== null) {
+    window.clearTimeout(state.lookalikeAdvanceTimer);
+    state.lookalikeAdvanceTimer = null;
+  }
   state.finishReason = null;
   startGameTimer();
   clearCountrySuggestions();
   if (state.gameType === "atlas") {
     startAtlasSession();
+    return;
+  }
+
+  if (state.gameType === "lookalike") {
+    state.guesses = [];
+    state.lookalikeScore = { correct: 0, total: 0, streak: 0, bestStreak: 0 };
+    state.finished = false;
+    setRoundInteractivity(true);
+    updateModeUI();
+    startLookalikeRound();
     return;
   }
 
@@ -2701,6 +2908,108 @@ function startGame() {
   elements.countryInput.focus();
 }
 
+function startLookalikeRound() {
+  if (!window.LOOKALIKE_GROUPS || !window.LOOKALIKE_GROUPS.length) {
+    return;
+  }
+
+  state.lookalikeAnswered = false;
+  const groups = window.LOOKALIKE_GROUPS.filter((group) => group.codes.length >= 2);
+  if (!groups.length) {
+    return;
+  }
+
+  const group = groups[Math.floor(Math.random() * groups.length)];
+  state.lookalikeGroup = group;
+
+  const shuffledCodes = [...group.codes].sort(() => Math.random() - 0.5);
+  state.target = countries.find((c) => c.code === shuffledCodes[0]) || pickRandomCountry();
+
+  elements.lookalikeCountryName.textContent = state.target.name;
+  elements.lookalikeFlagsGrid.innerHTML = "";
+
+  shuffledCodes.forEach((code) => {
+    const country = countries.find((c) => c.code === code);
+    if (!country) {
+      return;
+    }
+
+    const flagCard = document.createElement("button");
+    flagCard.className = "lookalike-flag-card";
+    flagCard.type = "button";
+    flagCard.setAttribute("aria-label", `Flag option ${elements.lookalikeFlagsGrid.children.length + 1}`);
+
+    const img = document.createElement("img");
+    img.className = "lookalike-flag-image";
+    img.src = getFlagUrl(code);
+    img.alt = "Flag option";
+    img.draggable = false;
+
+    flagCard.appendChild(img);
+    flagCard.addEventListener("click", () => handleLookalikePick(code, flagCard));
+    elements.lookalikeFlagsGrid.appendChild(flagCard);
+  });
+
+  updateLookalikeScore();
+}
+
+function handleLookalikePick(code, cardElement) {
+  if (state.lookalikeAnswered || state.finished) {
+    return;
+  }
+
+  state.lookalikeAnswered = true;
+  state.lookalikeScore.total += 1;
+
+  const isCorrect = code === state.target.code;
+  const allCards = elements.lookalikeFlagsGrid.querySelectorAll(".lookalike-flag-card");
+
+  if (isCorrect) {
+    state.lookalikeScore.correct += 1;
+    state.lookalikeScore.streak += 1;
+    if (state.lookalikeScore.streak > state.lookalikeScore.bestStreak) {
+      state.lookalikeScore.bestStreak = state.lookalikeScore.streak;
+    }
+    cardElement.classList.add("correct");
+    launchConfetti();
+    playCorrectSound();
+  } else {
+    state.lookalikeScore.streak = 0;
+    cardElement.classList.add("incorrect");
+
+    allCards.forEach((card) => {
+      const cardImg = card.querySelector("img");
+      if (cardImg) {
+        const cardCode = cardImg.src.split("/").pop().replace(".png", "");
+        if (cardCode === state.target.code) {
+          card.classList.add("correct");
+        }
+      }
+    });
+  }
+
+  state.guesses.push({
+    name: countries.find((c) => c.code === code)?.name || code,
+    code,
+    correct: isCorrect
+  });
+
+  updateLookalikeScore();
+  renderGuesses();
+
+  state.lookalikeAdvanceTimer = window.setTimeout(() => {
+    state.lookalikeAdvanceTimer = null;
+    if (state.gameType === "lookalike" && !state.finished) {
+      startLookalikeRound();
+    }
+  }, 1100);
+}
+
+function updateLookalikeScore() {
+  const { correct, total, streak, bestStreak } = state.lookalikeScore;
+  elements.historyCount.textContent = `${correct} / ${total} correct · Streak ${streak} · Best ${bestStreak}`;
+}
+
 function setSelection(partial) {
   const nextGameType = partial.gameType ?? state.gameType;
   const nextPlayMode = partial.playMode ?? state.playMode;
@@ -2709,7 +3018,7 @@ function setSelection(partial) {
     return;
   }
 
-  if (nextGameType !== "atlas" && nextPlayMode === "daily") {
+  if (nextGameType !== "atlas" && nextGameType !== "lookalike" && nextPlayMode === "daily") {
     const track = trackForGameType(nextGameType);
     if (!getScheduleForTrack(track)?.entries?.length) {
       return;
@@ -2717,6 +3026,10 @@ function setSelection(partial) {
   }
 
   if (nextGameType === "capitals" && !window.CAPITAL_HINTS) {
+    return;
+  }
+
+  if (nextGameType === "lookalike" && (!window.LOOKALIKE_GROUPS || !window.LOOKALIKE_GROUPS.length)) {
     return;
   }
 
@@ -2779,13 +3092,6 @@ elements.countryInput.addEventListener("input", (event) => {
   state.countrySuggestions = getCountrySuggestions(event.target.value);
   state.highlightedSuggestionIndex = -1;
   renderCountrySuggestions();
-
-  if (state.gameType === "atlas" && isAtlasCountrySet()) {
-    const country = findCountry(event.target.value);
-    if (country && state.atlasQueue.some((place) => place.code === country.code)) {
-      panAtlasToCountry(country.code);
-    }
-  }
 });
 
 elements.countryInput.addEventListener("keydown", (event) => {
@@ -2870,6 +3176,10 @@ elements.capitalsGameButton.addEventListener("click", () => {
   setSelection({ gameType: "capitals" });
 });
 
+elements.lookalikeGameButton.addEventListener("click", () => {
+  setSelection({ gameType: "lookalike", playMode: "unlimited" });
+});
+
 elements.dailyModeButton.addEventListener("click", () => {
   setSelection({ playMode: "daily" });
 });
@@ -2927,6 +3237,11 @@ elements.hintNextButton.addEventListener("click", () => {
 });
 
 elements.newGameButton.addEventListener("click", () => {
+  if (state.gameType === "lookalike") {
+    startGame();
+    return;
+  }
+
   if (state.gameType !== "atlas") {
     startGame();
     return;
@@ -2952,8 +3267,8 @@ elements.globeCanvas.addEventListener("pointercancel", endGlobeDrag);
 elements.globeCanvas.addEventListener("wheel", handleGlobeWheelZoom, { passive: false });
 elements.globeZoomInButton.addEventListener("click", () => adjustGlobeZoom(GLOBE_ZOOM_BUTTON_STEP));
 elements.globeZoomOutButton.addEventListener("click", () => adjustGlobeZoom(-GLOBE_ZOOM_BUTTON_STEP));
-elements.atlasZoomInButton.addEventListener("click", () => adjustAtlasZoom(1.45));
-elements.atlasZoomOutButton.addEventListener("click", () => adjustAtlasZoom(1 / 1.45));
+elements.atlasZoomInButton.addEventListener("click", () => adjustAtlasZoom(ATLAS_ZOOM_BUTTON_FACTOR));
+elements.atlasZoomOutButton.addEventListener("click", () => adjustAtlasZoom(1 / ATLAS_ZOOM_BUTTON_FACTOR));
 elements.atlasZoomResetButton.addEventListener("click", resetAtlasZoom);
 elements.atlasShowRemainingButton.addEventListener("click", () => {
   if (!isAtlasCountrySet() || state.finished) {
@@ -2976,10 +3291,12 @@ window.addEventListener("resize", () => {
 });
 
 async function init() {
+  initSoundSettings();
   applyTheme(getSavedTheme());
   initPalette();
   initSiteZoom();
   initRecognitionOptions();
+  initSoundToggle();
   initSettingsModal();
   resizeConfettiCanvas();
 
@@ -3022,7 +3339,7 @@ async function init() {
   state.capitalsRegion = savedSelection.capitalsRegion;
   state.hintsEnabled = savedSelection.hintsEnabled;
 
-  if (state.gameType !== "atlas" && state.playMode === "daily") {
+  if (state.gameType !== "atlas" && state.gameType !== "lookalike" && state.playMode === "daily") {
     const track = trackForGameType(state.gameType);
     if (!getScheduleForTrack(track)?.entries?.length) {
       state.playMode = "unlimited";
@@ -3038,6 +3355,10 @@ async function init() {
   }
 
   if (state.gameType === "atlas" && !state.atlasCountries.length) {
+    state.gameType = "flag";
+  }
+
+  if (state.gameType === "lookalike" && (!window.LOOKALIKE_GROUPS || !window.LOOKALIKE_GROUPS.length)) {
     state.gameType = "flag";
   }
 

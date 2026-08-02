@@ -13,6 +13,7 @@
   --danger: #c47a6b;
   --danger-soft: rgba(196, 122, 107, 0.08);
   --warning: #d4a56a;
+  --atlas-remaining: #2563eb;
   --heat-cold: #98b7c5;
   --heat-warm: #d4a56a;
   --heat-hot: #c47a6b;
@@ -59,6 +60,7 @@
   --danger: #d99585;
   --danger-soft: rgba(217, 149, 133, 0.1);
   --warning: #e0b87c;
+  --atlas-remaining: #60a5fa;
   --heat-cold: #82a6b8;
   --heat-warm: #e0b87c;
   --heat-hot: #d99585;
@@ -357,7 +359,8 @@ button {
 
 .flag-stage,
 .globle-stage,
-.atlas-stage {
+.atlas-stage,
+.lookalike-stage {
   position: relative;
   z-index: 1;
   min-width: 0;
@@ -509,10 +512,42 @@ button {
 }
 
 .atlas-country.remaining {
-  fill: color-mix(in srgb, var(--accent) 48%, #e8ebe4);
-  stroke: var(--accent-hover);
-  stroke-width: 1.4;
+  fill: color-mix(in srgb, var(--atlas-remaining) 62%, #e8ebe4);
+  stroke: var(--atlas-remaining);
+  stroke-width: 1.8;
 }
+
+.atlas-tiny-country-marker {
+  fill: var(--atlas-remaining);
+  fill-opacity: 0;
+  stroke: var(--atlas-remaining);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.16s ease, fill-opacity 0.16s ease;
+}
+
+.atlas-tiny-country-marker.is-visible {
+  fill-opacity: 0.78;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.atlas-tiny-country-marker:hover,
+.atlas-tiny-country-marker:focus-visible,
+.atlas-tiny-country-marker.selected {
+  fill-opacity: 1;
+  outline: none;
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.atlas-map.is-interacting .atlas-tiny-country-marker {
+  transition: none;
+}
+
 .atlas-country.named {
   fill: var(--success);
   stroke: var(--success);
@@ -539,7 +574,7 @@ button {
 }
 
 :root[data-theme="dark"] .atlas-country.remaining {
-  fill: color-mix(in srgb, var(--accent) 52%, #3a3f39);
+  fill: color-mix(in srgb, var(--atlas-remaining) 68%, #3a3f39);
 }
 
 :root[data-theme="dark"] .atlas-country.named {
@@ -1381,7 +1416,8 @@ kbd {
 
   .game-center,
   .game-center.globle-layout,
-  .game-center.atlas-layout {
+  .game-center.atlas-layout,
+  .game-center.lookalike-layout {
     grid-template-columns: minmax(0, 1fr) 340px;
   }
 }
@@ -1407,6 +1443,10 @@ kbd {
 
   .game-center.atlas-layout {
     grid-template-columns: minmax(0, 1.18fr) minmax(286px, 320px);
+  }
+
+  .game-center.lookalike-layout {
+    grid-template-columns: minmax(0, 1.3fr) minmax(286px, 320px);
   }
 
   .game-sidebar {
@@ -1537,7 +1577,8 @@ kbd {
   .game-center,
   .game-center.globle-layout,
   .game-center.atlas-layout,
-  .game-center.capitals-layout {
+  .game-center.capitals-layout,
+  .game-center.lookalike-layout {
     min-height: auto;
     grid-template-columns: 1fr;
   }
@@ -1551,7 +1592,8 @@ kbd {
 
   .flag-stage,
   .globle-stage,
-  .atlas-stage {
+  .atlas-stage,
+  .lookalike-stage {
     min-height: min(54svh, 560px);
   }
 
@@ -1623,7 +1665,8 @@ kbd {
 
   .flag-stage,
   .globle-stage,
-  .atlas-stage {
+  .atlas-stage,
+  .lookalike-stage {
     min-height: min(44svh, 360px);
   }
 
@@ -1993,7 +2036,8 @@ select:focus-visible,
 
 .game-center,
 .game-center.globle-layout,
-.game-center.atlas-layout {
+.game-center.atlas-layout,
+.game-center.lookalike-layout {
   grid-template-columns: minmax(0, 1fr) minmax(310px, 380px);
   min-height: 0;
   padding: 0;
@@ -2006,10 +2050,12 @@ select:focus-visible,
 }
 
 .game-center.globle-layout { grid-template-columns: minmax(0, 1.15fr) minmax(310px, 380px); }
+.game-center.lookalike-layout { grid-template-columns: minmax(0, 1.3fr) minmax(310px, 380px); }
 
 .flag-stage,
 .globle-stage,
-.atlas-stage {
+.atlas-stage,
+.lookalike-stage {
   min-height: clamp(420px, 57vw, 590px);
 }
 
@@ -2068,6 +2114,112 @@ select:focus-visible,
 .guess-list.atlas-board { max-height: min(230px, 28svh); }
 
 .action-dock { margin-top: 0; }
+
+/* Lookalike mode styles */
+.game-center.lookalike-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 344px);
+}
+
+.lookalike-stage {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lookalike-stage.is-hidden {
+  display: none;
+}
+
+.lookalike-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.lookalike-eyebrow {
+  font-family: var(--font-sans, "Inter", sans-serif);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+.lookalike-country-name {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--fg);
+}
+
+.lookalike-flags-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: clamp(0.8rem, 1.6vw, 1.2rem);
+  width: 100%;
+  max-width: 640px;
+}
+
+.lookalike-flag-card {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  border: 2.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg);
+  padding: 0;
+  box-shadow: var(--shadow-soft);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lookalike-flag-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow);
+  transform: translateY(-3px);
+}
+
+.lookalike-flag-card:focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lookalike-flag-card.correct {
+  border-color: var(--success);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 35%, transparent), var(--shadow);
+  transform: scale(1.03);
+  pointer-events: none;
+}
+
+.lookalike-flag-card.incorrect {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 35%, transparent);
+  opacity: 0.6;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+.lookalike-flag-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: auto;
+}
 
 /* Capitals mode styles */
 .capital-stage {
@@ -2381,7 +2533,8 @@ select:focus-visible,
 }
 
 @media (max-width: 760px) {
-  .game-center.capitals-layout {
+  .game-center.capitals-layout,
+  .game-center.lookalike-layout {
     grid-template-columns: 1fr;
   }
 
@@ -2426,7 +2579,8 @@ select:focus-visible,
 
   .game-center,
   .game-center.globle-layout,
-  .game-center.atlas-layout { grid-template-columns: 1fr; }
+  .game-center.atlas-layout,
+  .game-center.lookalike-layout { grid-template-columns: 1fr; }
 
   .game-sidebar { width: 100%; }
 }
@@ -2470,7 +2624,8 @@ select:focus-visible,
 
 .game-center,
 .game-center.globle-layout,
-.game-center.atlas-layout {
+.game-center.atlas-layout,
+.game-center.lookalike-layout {
   grid-template-columns: minmax(0, 1fr) minmax(350px, 400px);
   gap: clamp(28px, 3.25vw, 48px);
 }
@@ -2479,12 +2634,21 @@ select:focus-visible,
   grid-template-columns: minmax(0, 1.2fr) minmax(350px, 400px);
 }
 
+.game-center.lookalike-layout {
+  grid-template-columns: minmax(0, 1.3fr) minmax(350px, 400px);
+}
+
 .flag-stage,
 .globle-stage,
 .atlas-stage,
-.capital-stage {
+.capital-stage,
+.lookalike-stage {
   min-height: clamp(510px, 63vw, 680px);
   align-items: flex-start;
+}
+
+.lookalike-stage {
+  align-items: center;
 }
 
 .capital-stage {
@@ -2495,7 +2659,8 @@ select:focus-visible,
   .flag-stage,
   .globle-stage,
   .atlas-stage,
-  .capital-stage {
+  .capital-stage,
+  .lookalike-stage {
     min-height: 320px;
   }
 }
@@ -2562,13 +2727,19 @@ select:focus-visible,
   .game-center,
   .game-center.globle-layout,
   .game-center.atlas-layout,
-  .game-center.capitals-layout {
+  .game-center.capitals-layout,
+  .game-center.lookalike-layout {
     grid-template-columns: 1fr;
   }
 
   .flag-stage,
   .globle-stage,
   .atlas-stage {
+    min-height: min(68svh, 620px);
+    align-items: center;
+  }
+
+  .lookalike-stage {
     min-height: min(68svh, 620px);
     align-items: center;
   }
@@ -2579,7 +2750,8 @@ select:focus-visible,
   .page-intro h1 { font-size: 1.95rem; }
   .flag-stage,
   .globle-stage,
-  .atlas-stage { min-height: 360px; }
+  .atlas-stage,
+  .lookalike-stage { min-height: 360px; }
   .game-sidebar { padding: 22px; border-radius: 22px; }
 }
 
@@ -2641,7 +2813,7 @@ select:focus-visible,
     --play-area-height: clamp(540px, 63vw, 680px);
   }
 
-  .game-center:not(.globle-layout):not(.atlas-layout) {
+  .game-center:not(.globle-layout):not(.atlas-layout):not(.lookalike-layout):not(.capitals-layout) {
     grid-template-columns: minmax(0, 960px) 400px;
     justify-content: center;
     gap: clamp(24px, 2vw, 32px);
@@ -2650,7 +2822,8 @@ select:focus-visible,
   .flag-stage,
   .globle-stage,
   .atlas-stage,
-  .capital-stage {
+  .capital-stage,
+  .lookalike-stage {
     height: var(--play-area-height);
     min-height: 0;
   }
@@ -2702,7 +2875,7 @@ select:focus-visible,
   .game-center,
   .game-center.globle-layout,
   .game-center.atlas-layout,
-  .game-center:not(.globle-layout):not(.atlas-layout) {
+  .game-center:not(.globle-layout):not(.atlas-layout):not(.lookalike-layout):not(.capitals-layout) {
     --play-area-height: clamp(680px, 66vw, 720px);
     grid-template-columns: minmax(0, 1040px) 430px;
     justify-content: center;
@@ -2749,7 +2922,7 @@ select:focus-visible,
   .game-center,
   .game-center.globle-layout,
   .game-center.atlas-layout,
-  .game-center:not(.globle-layout):not(.atlas-layout) {
+  .game-center:not(.globle-layout):not(.atlas-layout):not(.lookalike-layout):not(.capitals-layout) {
     --play-area-height: 792px;
     grid-template-columns: minmax(0, 1144px) 473px;
     gap: 35px;
