@@ -21,7 +21,8 @@ const HEAT_BANDS_KM = {
 };
 const GLOBE_ZOOM_MIN = 0.7;
 const GLOBE_ZOOM_MAX = 3.2;
-const GLOBE_ZOOM_BUTTON_STEP = 0.25;
+const GLOBE_ZOOM_BUTTON_FACTOR = 1.2;
+const GLOBE_WHEEL_SENSITIVITY = 0.0015;
 const ATLAS_ZOOM_MAX = 32;
 const ATLAS_ZOOM_BUTTON_FACTOR = 1.6;
 const ATLAS_DETAIL_ZOOM = 2;
@@ -220,8 +221,9 @@ const state = {
   globeFeatures: [],
   globeRotation: [-20, -18, 0],
   globeZoom: 1,
-  globeDragStart: null,
+  globeDragVector: null,
   globeRotationStart: null,
+  globeRotationQuaternion: null,
   globeDragging: false,
   globeRenderQueued: false,
   globeProjection: null,
@@ -246,6 +248,8 @@ const state = {
   atlasMapLayer: null,
   atlasCountryPaths: null,
   atlasTinyCountryMarkers: null,
+  atlasCountryPathByCode: new Map(),
+  atlasTinyMarkerByCode: new Map(),
   atlasMapPath: null,
   atlasPathCache: new Map(),
   atlasPathCacheEntry: null,
@@ -253,6 +257,7 @@ const state = {
   atlasMapDetail: null,
   atlasRenderKey: null,
   atlasZoomFrame: null,
+  atlasPanAnimationFrame: null,
   atlasPendingTransform: null,
   palette: "sage",
   siteZoom: 1,
@@ -1678,12 +1683,12 @@ function ensureGlobeRenderer(width, height) {
     .rotate(state.globeRotation);
 }
 
-function adjustGlobeZoom(delta) {
+function adjustGlobeZoom(factor) {
   if (state.gameType !== "globe") {
     return;
   }
 
-  state.globeZoom = clamp(state.globeZoom + delta, GLOBE_ZOOM_MIN, GLOBE_ZOOM_MAX);
+  state.globeZoom = clamp(state.globeZoom * factor, GLOBE_ZOOM_MIN, GLOBE_ZOOM_MAX);
   queueGlobeRender();
 }
 
@@ -1693,8 +1698,13 @@ function handleGlobeWheelZoom(event) {
   }
 
   event.preventDefault();
-  const step = clamp(-event.deltaY * 0.0015, -0.35, 0.35);
-  adjustGlobeZoom(step);
+  const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+    ? 16
+    : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+      ? elements.globeCanvas.clientHeight
+      : 1;
+  const factor = Math.exp(clamp(-event.deltaY * deltaScale * GLOBE_WHEEL_SENSITIVITY, -0.45, 0.45));
+  adjustGlobeZoom(factor);
 }
 
 function renderGlobe() {
@@ -1711,8 +1721,12 @@ function renderGlobe() {
   }
 
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  const renderWidth = Math.round(width * dpr);
+  const renderHeight = Math.round(height * dpr);
+  if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+    canvas.width = renderWidth;
+    canvas.height = renderHeight;
+  }
 
   const context = canvas.getContext("2d");
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1768,6 +1782,85 @@ function queueGlobeRender() {
     state.globeRenderQueued = false;
     renderGlobe();
   });
+}
+
+function globePointerVector(event, rotation = state.globeRotation) {
+  const bounds = elements.globeCanvas.getBoundingClientRect();
+  const centerX = bounds.width / 2;
+  const centerY = bounds.height / 2;
+  const radius = Math.min(bounds.width, bounds.height) * 0.485 * state.globeZoom;
+  let x = event.clientX - bounds.left;
+  let y = event.clientY - bounds.top;
+  const offsetX = x - centerX;
+  const offsetY = y - centerY;
+  const distance = Math.hypot(offsetX, offsetY);
+
+  if (distance > radius) {
+    x = centerX + offsetX * radius / distance;
+    y = centerY + offsetY * radius / distance;
+  }
+
+  ensureGlobeRenderer(bounds.width, bounds.height);
+  const coordinates = state.globeProjection.rotate(rotation).invert([x, y]);
+  const longitude = coordinates[0] * Math.PI / 180;
+  const latitude = coordinates[1] * Math.PI / 180;
+  const cosLatitude = Math.cos(latitude);
+  return [cosLatitude * Math.cos(longitude), cosLatitude * Math.sin(longitude), Math.sin(latitude)];
+}
+
+function globeRotationToQuaternion([longitude, latitude, roll]) {
+  const lambda = longitude * Math.PI / 360;
+  const phi = latitude * Math.PI / 360;
+  const gamma = roll * Math.PI / 360;
+  const sinLambda = Math.sin(lambda);
+  const cosLambda = Math.cos(lambda);
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const sinGamma = Math.sin(gamma);
+  const cosGamma = Math.cos(gamma);
+
+  return [
+    cosLambda * cosPhi * cosGamma + sinLambda * sinPhi * sinGamma,
+    sinLambda * cosPhi * cosGamma - cosLambda * sinPhi * sinGamma,
+    cosLambda * sinPhi * cosGamma + sinLambda * cosPhi * sinGamma,
+    cosLambda * cosPhi * sinGamma - sinLambda * sinPhi * cosGamma
+  ];
+}
+
+function globeQuaternionDelta(from, to) {
+  const cross = [
+    from[1] * to[2] - from[2] * to[1],
+    from[2] * to[0] - from[0] * to[2],
+    from[0] * to[1] - from[1] * to[0]
+  ];
+  const crossLength = Math.hypot(...cross);
+  const dot = clamp(from[0] * to[0] + from[1] * to[1] + from[2] * to[2], -1, 1);
+
+  if (crossLength < 1e-8) {
+    return [1, 0, 0, 0];
+  }
+
+  const halfAngle = Math.acos(dot) / 2;
+  const scale = Math.sin(halfAngle) / crossLength;
+  return [Math.cos(halfAngle), cross[2] * scale, -cross[1] * scale, cross[0] * scale];
+}
+
+function multiplyGlobeQuaternions(left, right) {
+  return [
+    left[0] * right[0] - left[1] * right[1] - left[2] * right[2] - left[3] * right[3],
+    left[0] * right[1] + left[1] * right[0] + left[2] * right[3] - left[3] * right[2],
+    left[0] * right[2] - left[1] * right[3] + left[2] * right[0] + left[3] * right[1],
+    left[0] * right[3] + left[1] * right[2] - left[2] * right[1] + left[3] * right[0]
+  ];
+}
+
+function globeQuaternionToRotation([w, x, y, z]) {
+  const radiansToDegrees = 180 / Math.PI;
+  return [
+    Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)) * radiansToDegrees,
+    Math.asin(clamp(2 * (w * y - z * x), -1, 1)) * radiansToDegrees,
+    Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)) * radiansToDegrees
+  ];
 }
 
 function getAtlasCountryPlaceByCode(code) {
@@ -1854,6 +1947,28 @@ function updateAtlasCountryMapStyles() {
   elements.atlasShowRemainingButton.classList.toggle("is-active", state.atlasShowRemaining);
   elements.atlasRevealSelectedButton.disabled = !state.atlasSelectedCountryCode || state.finished;
   elements.giveUpButton.disabled = state.finished;
+}
+
+function updateAtlasCountryMapEntry(code, guess) {
+  const countryPath = state.atlasCountryPathByCode.get(code);
+  if (countryPath) {
+    countryPath.classList.remove("remaining", "named", "revealed", "selected");
+    countryPath.classList.add(guess.correct ? "named" : "revealed");
+  }
+
+  const tinyMarker = state.atlasTinyMarkerByCode.get(code);
+  if (tinyMarker) {
+    tinyMarker.classList.remove("is-visible", "selected");
+    tinyMarker.setAttribute("tabindex", "-1");
+    tinyMarker.setAttribute("aria-hidden", "true");
+  }
+
+  const namedCount = state.guesses.filter((entry) => entry.correct).length;
+  elements.atlasPosition.textContent = `${state.guesses.length} / ${state.atlasQueue.length} complete`;
+  elements.atlasMapSelection.textContent = namedCount
+    ? `${namedCount} named · keep typing`
+    : "Type country names to fill the map";
+  elements.atlasRevealSelectedButton.disabled = !state.atlasSelectedCountryCode || state.finished;
 }
 
 function createAtlasProjection(featureCollection) {
@@ -2084,10 +2199,16 @@ function renderAtlasCountryMap() {
     window.cancelAnimationFrame(state.atlasZoomFrame);
     state.atlasZoomFrame = null;
   }
+  if (state.atlasPanAnimationFrame !== null) {
+    window.cancelAnimationFrame(state.atlasPanAnimationFrame);
+    state.atlasPanAnimationFrame = null;
+  }
   state.atlasPendingTransform = null;
   state.atlasMapDetail = null;
   state.atlasCountryPaths = null;
   state.atlasTinyCountryMarkers = null;
+  state.atlasCountryPathByCode = new Map();
+  state.atlasTinyMarkerByCode = new Map();
   state.atlasPathCacheEntry = pathCacheEntry;
   state.atlasRenderKey = renderKey;
   cancelAtlasDetailPreparation();
@@ -2134,6 +2255,9 @@ function renderAtlasCountryMap() {
       }
       return isActive ? "atlas-country atlas-physical-target" : "atlas-country atlas-physical-base";
     });
+  state.atlasCountryPathByCode = new Map(
+    state.atlasCountryPaths.nodes().map((node) => [node.dataset.countryCode, node])
+  );
   countryLayer.on("click", (event) => {
     if (!isCountryMap || event.defaultPrevented || !event.target.classList.contains("atlas-country")) {
       return;
@@ -2162,6 +2286,9 @@ function renderAtlasCountryMap() {
       .attr("r", 7)
       .attr("role", "button")
       .attr("aria-label", (_, index) => `Highlighted unentered country marker ${index + 1}`);
+    state.atlasTinyMarkerByCode = new Map(
+      state.atlasTinyCountryMarkers.nodes().map((node) => [node.dataset.countryCode, node])
+    );
     tinyCountryLayer
       .on("click", (event) => {
         if (!event.defaultPrevented && event.target.classList.contains("atlas-tiny-country-marker")) {
@@ -2183,8 +2310,12 @@ function renderAtlasCountryMap() {
     .scaleExtent([1, ATLAS_ZOOM_MAX])
     .extent([[0, 0], [1000, 620]])
     .translateExtent([[-120, -90], [1120, 710]])
-    .on("start", () => {
-      elements.atlasMap.classList.add("is-interacting");
+    .on("start", (event) => {
+      if (event.sourceEvent && state.atlasPanAnimationFrame !== null) {
+        window.cancelAnimationFrame(state.atlasPanAnimationFrame);
+        state.atlasPanAnimationFrame = null;
+      }
+      elements.atlasMap.classList.toggle("is-interacting", Boolean(event.sourceEvent));
     })
     .on("zoom", (event) => {
       state.atlasPendingTransform = event.transform;
@@ -2293,12 +2424,40 @@ function panAtlasToCountry(code) {
     return;
   }
 
-  d3.select(elements.atlasMap)
-    .interrupt()
-    .transition()
-    .duration(320)
-    .ease(d3.easeCubicOut)
-    .call(state.atlasZoomBehavior.transform, nextTransform);
+  const map = d3.select(elements.atlasMap).interrupt();
+  if (state.atlasPanAnimationFrame !== null) {
+    window.cancelAnimationFrame(state.atlasPanAnimationFrame);
+    state.atlasPanAnimationFrame = null;
+  }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    map.call(state.atlasZoomBehavior.transform, nextTransform);
+    return;
+  }
+
+  const startedAt = performance.now();
+  const duration = 220;
+  const animatePan = (now) => {
+    const progress = clamp((now - startedAt) / duration, 0, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const transform = d3.zoomIdentity
+      .translate(
+        currentTransform.x + (nextTransform.x - currentTransform.x) * eased,
+        currentTransform.y + (nextTransform.y - currentTransform.y) * eased
+      )
+      .scale(currentTransform.k);
+
+    elements.atlasMap.__zoom = transform;
+    state.atlasMapLayer.attr("transform", transform);
+
+    if (progress < 1) {
+      state.atlasPanAnimationFrame = window.requestAnimationFrame(animatePan);
+      return;
+    }
+
+    state.atlasPanAnimationFrame = null;
+  };
+
+  state.atlasPanAnimationFrame = window.requestAnimationFrame(animatePan);
 }
 
 function rotateGlobeToCountry(code, animate = true) {
@@ -2321,6 +2480,7 @@ function rotateGlobeToCountry(code, animate = true) {
   }
 
   const startRotation = [...state.globeRotation];
+  const longitudeDelta = ((targetRotation[0] - startRotation[0] + 540) % 360) - 180;
   const startTime = performance.now();
   const duration = 380;
 
@@ -2329,7 +2489,7 @@ function rotateGlobeToCountry(code, animate = true) {
     const eased = 1 - Math.pow(1 - progress, 3);
 
     state.globeRotation = [
-      startRotation[0] + (targetRotation[0] - startRotation[0]) * eased,
+      startRotation[0] + longitudeDelta * eased,
       startRotation[1] + (targetRotation[1] - startRotation[1]) * eased,
       0
     ];
@@ -2640,8 +2800,6 @@ function submitAtlasCountryGuess(rawValue) {
     return;
   }
 
-  panAtlasToCountry(country.code);
-
   state.guesses.push({
     name: place.name,
     id: place.id,
@@ -2656,7 +2814,8 @@ function submitAtlasCountryGuess(rawValue) {
   elements.countryInput.value = "";
   clearSpellingCorrection();
   renderGuesses();
-  updateAtlasCountryMapStyles();
+  updateAtlasCountryMapEntry(country.code, state.guesses[state.guesses.length - 1]);
+  panAtlasToCountry(country.code);
 
   if (state.guesses.length >= state.atlasQueue.length) {
     completeAtlasSet();
@@ -2692,7 +2851,7 @@ function revealAtlasCountryByCode(code) {
   });
   updateStatus(`${place.name} revealed. Keep typing any country you know.`, "default");
   renderGuesses();
-  updateAtlasCountryMapStyles();
+  updateAtlasCountryMapEntry(code, state.guesses[state.guesses.length - 1]);
 
   if (state.guesses.length >= state.atlasQueue.length) {
     completeAtlasSet();
@@ -3260,9 +3419,14 @@ function beginGlobeDrag(event) {
     return;
   }
 
+  if (state.globeAnimationFrame) {
+    cancelAnimationFrame(state.globeAnimationFrame);
+    state.globeAnimationFrame = null;
+  }
   state.globeDragging = true;
-  state.globeDragStart = { x: event.clientX, y: event.clientY };
   state.globeRotationStart = [...state.globeRotation];
+  state.globeDragVector = globePointerVector(event, state.globeRotationStart);
+  state.globeRotationQuaternion = globeRotationToQuaternion(state.globeRotationStart);
   elements.globeCanvas.classList.add("dragging");
   elements.globeCanvas.setPointerCapture(event.pointerId);
 }
@@ -3272,13 +3436,11 @@ function moveGlobeDrag(event) {
     return;
   }
 
-  const deltaX = event.clientX - state.globeDragStart.x;
-  const deltaY = event.clientY - state.globeDragStart.y;
-  state.globeRotation = [
-    state.globeRotationStart[0] + deltaX * 0.35,
-    clamp(state.globeRotationStart[1] - deltaY * 0.35, -70, 70),
-    0
-  ];
+  const currentVector = globePointerVector(event, state.globeRotationStart);
+  const delta = globeQuaternionDelta(state.globeDragVector, currentVector);
+  state.globeRotation = globeQuaternionToRotation(
+    multiplyGlobeQuaternions(state.globeRotationQuaternion, delta)
+  );
 
   queueGlobeRender();
 }
@@ -3289,8 +3451,9 @@ function endGlobeDrag(event) {
   }
 
   state.globeDragging = false;
-  state.globeDragStart = null;
+  state.globeDragVector = null;
   state.globeRotationStart = null;
+  state.globeRotationQuaternion = null;
   elements.globeCanvas.classList.remove("dragging");
 
   if (event?.pointerId != null) {
@@ -3476,8 +3639,8 @@ elements.globeCanvas.addEventListener("pointermove", moveGlobeDrag);
 elements.globeCanvas.addEventListener("pointerup", endGlobeDrag);
 elements.globeCanvas.addEventListener("pointercancel", endGlobeDrag);
 elements.globeCanvas.addEventListener("wheel", handleGlobeWheelZoom, { passive: false });
-elements.globeZoomInButton.addEventListener("click", () => adjustGlobeZoom(GLOBE_ZOOM_BUTTON_STEP));
-elements.globeZoomOutButton.addEventListener("click", () => adjustGlobeZoom(-GLOBE_ZOOM_BUTTON_STEP));
+elements.globeZoomInButton.addEventListener("click", () => adjustGlobeZoom(GLOBE_ZOOM_BUTTON_FACTOR));
+elements.globeZoomOutButton.addEventListener("click", () => adjustGlobeZoom(1 / GLOBE_ZOOM_BUTTON_FACTOR));
 elements.atlasZoomInButton.addEventListener("click", () => adjustAtlasZoom(ATLAS_ZOOM_BUTTON_FACTOR));
 elements.atlasZoomOutButton.addEventListener("click", () => adjustAtlasZoom(1 / ATLAS_ZOOM_BUTTON_FACTOR));
 elements.atlasZoomResetButton.addEventListener("click", resetAtlasZoom);
