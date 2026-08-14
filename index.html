@@ -3,11 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flaggo</title>
+  <title>Flaggo — daily flag and geography games</title>
+  <meta name="description" content="Five daily geography games: guess the flag, find the country on a globe, name every country on the map, recall capitals, and tell lookalike flags apart.">
+  <meta name="theme-color" content="#6b8b7a" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1c19" media="(prefers-color-scheme: dark)">
+
+  <!-- Relative paths throughout: on GitHub Pages the site is served from
+       /flaggo/, not the domain root, so absolute paths would 404. -->
+  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-180.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Flaggo">
+  <meta property="og:title" content="Flaggo — daily flag and geography games">
+  <meta property="og:description" content="Five daily geography games: flags, globe, world map, capitals, and lookalike flags. A new puzzle every day.">
+  <meta property="og:image" content="./icons/og-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Flaggo — daily flag and geography games">
+  <meta name="twitter:description" content="Five daily geography games: flags, globe, world map, capitals, and lookalike flags. A new puzzle every day.">
+  <meta name="twitter:image" content="./icons/og-card.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="modulepreload" href="./src/main.js">
+  <link rel="modulepreload" href="./src/round.js">
+  <link rel="modulepreload" href="./src/core/state.js">
+  <link rel="modulepreload" href="./src/core/catalog.js">
 </head>
 <body>
   <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
@@ -217,6 +241,7 @@
           </div>
           <ul id="guess-list" class="guess-list"></ul>
           <div class="action-dock" role="group" aria-label="Round actions">
+            <button id="share-button" class="ghost-button share-button is-hidden" type="button">Share result</button>
             <button id="give-up-button" class="ghost-button warning-button" type="button">Give up</button>
             <button id="new-game-button" class="ghost-button" type="button">New flag</button>
           </div>
@@ -269,6 +294,13 @@
           <div class="palette-check">&check;</div>
         </div>
       </div>
+      <section class="settings-stats" aria-labelledby="stats-title">
+        <div>
+          <p class="settings-section-label" id="stats-title">Your record</p>
+          <p class="settings-section-help">Daily rounds only. Saved on this device.</p>
+        </div>
+        <div id="stats-panel" class="stats-panel"></div>
+      </section>
       <section class="settings-zoom" aria-labelledby="site-zoom-title">
         <div>
           <p class="settings-section-label" id="site-zoom-title">Interface size</p>
@@ -298,10 +330,8 @@
     </div>
   </div>
 
-<script src="countries.js"></script>
-  <script src="data/capitals-data.js"></script>
-  <script src="data/lookalike-groups.js"></script>
-  <script src="vendor/d3.min.js"></script>
-  <script src="script.js"></script>
+<!-- d3 (280 KB) is injected on demand by src/core/loaders.js: only the globe
+       and map modes need it, so it stays off the critical path. -->
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

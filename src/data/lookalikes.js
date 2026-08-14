@@ -1,4 +1,4 @@
-window.LOOKALIKE_GROUPS = [
+export const LOOKALIKE_GROUPS = [
   {
     id: "vertical-tricolors",
     label: "Blue-Yellow-Red Verticals",

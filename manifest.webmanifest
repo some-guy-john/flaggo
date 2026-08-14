@@ -1,0 +1,17 @@
+{
+  "name": "Flaggo — daily flag and geography games",
+  "short_name": "Flaggo",
+  "description": "Five daily geography games: flags, globe, world map, capitals, and lookalike flags.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f5f2",
+  "theme_color": "#6b8b7a",
+  "categories": ["games", "education"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

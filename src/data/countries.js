@@ -1,4 +1,4 @@
-window.COUNTRIES = [
+export const COUNTRIES = [
   { name: "Afghanistan", code: "af", aliases: [] },
   { name: "Albania", code: "al", aliases: [] },
   { name: "Algeria", code: "dz", aliases: [] },

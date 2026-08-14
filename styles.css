@@ -1337,6 +1337,22 @@ kbd {
   padding-top: 0.1rem;
 }
 
+/* Share is the primary action once a daily is done, so it spans the dock
+   rather than squeezing the two-column grid into three. */
+.share-button {
+  grid-column: 1 / -1;
+  color: var(--surface);
+  background: var(--accent);
+}
+
+.share-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.share-button.is-hidden {
+  display: none;
+}
+
 .ghost-button,
 .primary-button {
   border: 0;
@@ -1829,6 +1845,84 @@ kbd {
   margin-left: auto;
 }
 .palette-card.selected .palette-check { display: grid; }
+
+.settings-stats {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+.stats-panel {
+  display: grid;
+  gap: 12px;
+}
+.stats-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stats-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.stats-card-title {
+  margin: 0 0 10px;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stats-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.stats-figures div {
+  display: grid;
+  gap: 2px;
+  min-width: 46px;
+}
+.stats-figures b {
+  color: var(--fg);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stats-figures span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.stats-dist {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+}
+.stats-dist-row {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.stats-dist-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.stats-dist-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 .settings-zoom {
   display: flex;
