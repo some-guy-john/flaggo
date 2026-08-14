@@ -415,6 +415,49 @@
       return `stable at ${first}`;
     });
 
+    /* -------------------------------------------- give up, every mode */
+
+    await check("give up: tricky reveals the right card and locks the round", async () => {
+      await selectMode("lookalike");
+      await until(() => $$("#lookalike-flags-grid img, #lookalike-flags-grid button").length >= 2,
+        { label: "lookalike cards" });
+
+      $("#give-up-button").click();
+      await until(() => $("#country-input").disabled, { label: "round locked" });
+
+      assert($("#lookalike-flags-grid .lookalike-flag-card.correct"), "correct card was not highlighted");
+      assert(statusText().length > 0, "status empty after give up");
+      return statusText();
+    });
+
+    await check("give up: capitals and globe each report their own answer", async () => {
+      const seen = {};
+
+      for (const mode of ["capitals", "globe"]) {
+        await selectMode(mode);
+        await setPlayMode("unlimited");
+        await sleep(200);
+        $("#give-up-button").click();
+        await until(() => $("#country-input").disabled, { timeout: 10000, label: `${mode} locked` });
+        seen[mode] = statusText();
+        assert(/gave up/i.test(seen[mode]), `${mode} give up said: ${seen[mode]}`);
+      }
+
+      assert(seen.capitals !== seen.globe, "capitals and globe gave the same message");
+      return `${seen.capitals} | ${seen.globe}`;
+    });
+
+    await check("give up: map reveals the whole set", async () => {
+      await selectMode("atlas");
+      await until(() => $$("#atlas-map path").length > 100, { timeout: 15000, label: "atlas paths" });
+
+      $("#give-up-button").click();
+      await until(() => /194\s*\/\s*194/.test($("#atlas-position")?.textContent || ""),
+        { timeout: 10000, label: "atlas fully revealed" });
+
+      return $("#atlas-position").textContent.trim();
+    });
+
     /* ------------------------------------------- persistence and stats */
 
     await check("daily: a played round is written to storage", async () => {

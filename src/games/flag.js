@@ -34,3 +34,8 @@ export function submitFlagGuess(country) {
   saveRoundProgress();
   renderGuesses();
 }
+
+export function giveUpFlag() {
+  state.finishReason = "gave-up";
+  finishRound("You gave up. The answer is revealed on the guess board.", "failure");
+}

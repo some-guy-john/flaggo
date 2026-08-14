@@ -3,16 +3,13 @@ import { TOTAL_TILES } from "./core/constants.js";
 import { getDailyCountryForDate, isDailyAvailable, toUtcDateKey, trackForGameType } from "./core/daily.js";
 import { ensureGameReady, gameNeedsLoading } from "./core/loaders.js";
 import { isPersistableRound, loadRoundProgress, saveRoundProgress } from "./core/progress.js";
-import { getTrickyBest, recordDailyResult } from "./core/stats.js";
+import { recordDailyResult } from "./core/stats.js";
 import { elements, state } from "./core/state.js";
 import { saveSelection } from "./core/storage.js";
 import { startGameTimer, stopGameTimer } from "./core/timer.js";
 import { LOOKALIKE_GROUPS } from "./data/lookalikes.js";
-import { clearAtlasAdvanceTimer, getAtlasSetDefinition, revealAtlasAnswer, startAtlasSession, submitAtlasGuess } from "./games/atlas.js";
-import { pickCapitalTarget, renderCapitalStage, submitCapitalGuess } from "./games/capitals.js";
-import { submitFlagGuess } from "./games/flag.js";
-import { submitGlobeGuess } from "./games/globe.js";
-import { startLookalikeRound } from "./games/lookalike.js";
+import { clearAtlasAdvanceTimer, getAtlasSetDefinition } from "./games/atlas.js";
+import { GAME_IDS, getGame } from "./games/registry.js";
 import { queueGlobeRender, rotateGlobeToCountry } from "./map/globe.js";
 import { renderGuesses, renderMask, revealAllTiles, setRoundInteractivity, updateStatus } from "./ui/board.js";
 import { updateShareButton } from "./ui/share.js";
@@ -22,107 +19,87 @@ import { clearCountrySuggestions, clearSpellingCorrection, offerSpellingCorrecti
    round for a mode the player has already navigated away from. */
 let pendingModeSwitch = null;
 
-export function updateModeUI() {
-  const isFlag = state.gameType === "flag";
-  const isGlobe = state.gameType === "globe";
-  const isAtlas = state.gameType === "atlas";
-  const isCapitals = state.gameType === "capitals";
-  const isLookalike = state.gameType === "lookalike";
-  const isDaily = state.playMode === "daily";
-  const isUnlimited = state.playMode === "unlimited";
+/* The variable bits of the round, resolved once and handed to the descriptors
+   so they never reach into state themselves. */
+export function buildContext() {
   const atlasSet = getAtlasSetDefinition();
-  const isAtlasCountryMap = isAtlas && atlasSet.kind === "countries";
 
-  elements.flagGameButton.classList.toggle("active", isFlag);
-  elements.globleGameButton.classList.toggle("active", isGlobe);
-  elements.atlasGameButton.classList.toggle("active", isAtlas);
-  elements.capitalsGameButton.classList.toggle("active", isCapitals);
-  elements.lookalikeGameButton.classList.toggle("active", isLookalike);
+  return {
+    gameType: state.gameType,
+    isDaily: state.playMode === "daily",
+    finished: state.finished,
+    atlasSet,
+    isAtlasCountryMap: state.gameType === "atlas" && atlasSet.kind === "countries",
+    atlasAnswered: state.atlasAnswered,
+    countriesCount: countries.length
+  };
+}
+
+export function currentGame() {
+  return getGame(state.gameType);
+}
+
+export function updateModeUI() {
+  const game = currentGame();
+  const ctx = buildContext();
+  const { isDaily, isAtlasCountryMap } = ctx;
+
+  /* Mode nav and stages: every game is toggled from its own descriptor, so
+     nothing has to be listed twice. */
+  GAME_IDS.forEach((id) => {
+    const other = getGame(id);
+    const active = id === game.id;
+
+    elements[other.modeButton].classList.toggle("active", active);
+    elements[other.stage].classList.toggle("is-hidden", !active);
+    elements[other.stage].setAttribute("aria-hidden", String(!active));
+
+    if (other.layoutClass) {
+      elements.gameCenter.classList.toggle(other.layoutClass, active);
+    }
+  });
+
   elements.dailyModeButton.classList.toggle("active", isDaily);
-  elements.unlimitedModeButton.classList.toggle("active", isUnlimited);
-  elements.playModeSwitch.classList.toggle("is-hidden", isAtlas || isLookalike);
-  elements.atlasSetControl.classList.toggle("is-hidden", !isAtlas);
+  elements.unlimitedModeButton.classList.toggle("active", !isDaily);
+  elements.playModeSwitch.classList.toggle("is-hidden", !game.supportsDaily);
+  elements.atlasSetControl.classList.toggle("is-hidden", game.id !== "atlas");
   elements.atlasSetSelect.value = state.atlasSet;
-  elements.capitalsRegionControl.classList.toggle("is-hidden", !isCapitals || isDaily);
+  elements.capitalsRegionControl.classList.toggle("is-hidden", game.id !== "capitals" || isDaily);
   elements.capitalsRegionSelect.value = state.capitalsRegion;
-  elements.hintsSwitch.classList.toggle("is-hidden", !isFlag && !isGlobe);
+  elements.hintsSwitch.classList.toggle("is-hidden", !game.supportsHints);
   elements.hintsOffButton.classList.toggle("active", !state.hintsEnabled);
   elements.hintsOnButton.classList.toggle("active", state.hintsEnabled);
 
-  elements.pageTitle.textContent = isAtlas
-    ? isAtlasCountryMap ? "Name every country on the map." : "Name the highlighted area."
-    : isGlobe
-      ? "Guess the country from the globe."
-      : isCapitals
-        ? "Name the capital from the country and its flag."
-        : isLookalike
-          ? "Pick the right flag from the lookalikes."
-          : "Guess the country from its flag.";
-  elements.roundTitle.textContent = isAtlas
-    ? atlasSet.id === "world" ? `All ${countries.length} countries` : atlasSet.label
-    : isGlobe
-      ? isDaily ? "Daily globe mystery country" : "Unlimited globe practice"
-      : isCapitals
-        ? isDaily ? "Daily shared capital" : "Unlimited capitals practice"
-        : isLookalike
-          ? "Unlimited lookalike practice"
-          : isDaily ? "Daily shared flag" : "Unlimited flag practice";
-  elements.guessesTitle.textContent = isAtlas ? "Set progress" : isGlobe ? "Proximity board" : isLookalike ? "Pick history" : "Guess board";
-  elements.newGameButton.textContent = isAtlas
-    ? isAtlasCountryMap ? "Restart map" : state.finished ? "Restart set" : "Next map"
-    : isLookalike ? "New set" : isGlobe ? "New globe" : isCapitals ? "New capitals" : "New flag";
-  elements.newGameButton.textContent = isDaily && state.finished && !isAtlas && !isLookalike
-    ? "Play unlimited"
-    : elements.newGameButton.textContent;
-  elements.newGameButton.classList.toggle(
-    "is-hidden",
-    isAtlas
-      ? isAtlasCountryMap ? !state.finished : !state.atlasAnswered && !state.finished
-      /* Daily hides the button mid-round, but shows it once finished so the
-         player has somewhere to go that is not a retry of today's puzzle. */
-      : isDaily && !state.finished
-  );
-  elements.giveUpButton.textContent = state.finished
-    ? "Answer shown"
-    : isAtlas ? isAtlasCountryMap ? "Give up" : "Reveal answer" : "Give up";
-  elements.guessButton.textContent = isAtlas ? isAtlasCountryMap ? "Name country" : "Check" : "Guess";
-  elements.countryInputLabel.textContent = isAtlas ? "Geographic area name" : isCapitals ? "Capital city" : "Country name";
-  elements.countryInput.setAttribute("aria-autocomplete", isAtlas ? "none" : "list");
-  elements.countryInput.placeholder = isAtlas
-    ? isAtlasCountryMap ? "Type the full country name..." : "Name the highlighted area..."
-    : isCapitals ? "Type the capital city name..." : "Type the full country name...";
-  elements.inputHint.innerHTML = isAtlas
-    ? isAtlasCountryMap
-      ? "Type any country name. Click a country only when you want to reveal it."
-      : "Enter the highlighted area's full name. Spelling help appears only after an unrecognized answer."
-    : isCapitals
-      ? "Type to search capital cities. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to autofill."
-      : "Type to search countries. Use <kbd>Tab</kbd> and <kbd>Shift + Tab</kbd> to move through matches, then <kbd>Enter</kbd> to autofill.";
-  elements.gameCenter.classList.toggle("globle-layout", isGlobe);
-  elements.gameCenter.classList.toggle("atlas-layout", isAtlas);
-  elements.gameCenter.classList.toggle("capitals-layout", isCapitals);
-  elements.gameCenter.classList.toggle("lookalike-layout", isLookalike);
-  elements.flagStage.classList.toggle("is-hidden", !isFlag);
-  elements.globleStage.classList.toggle("is-hidden", !isGlobe);
-  elements.atlasStage.classList.toggle("is-hidden", !isAtlas);
-  elements.capitalStage.classList.toggle("is-hidden", !isCapitals);
-  elements.lookalikeStage.classList.toggle("is-hidden", !isLookalike);
+  elements.pageTitle.textContent = game.pageTitle(ctx);
+  elements.roundTitle.textContent = game.roundTitle(ctx);
+  elements.guessesTitle.textContent = game.guessesTitle;
 
-  elements.flagImage.classList.toggle("is-hidden", !isFlag);
-  elements.flagMask.classList.toggle("is-hidden", !isFlag);
-  elements.globlePanel.classList.toggle("is-hidden", !isGlobe);
-  elements.globlePanel.setAttribute("aria-hidden", String(!isGlobe));
-  elements.atlasStage.setAttribute("aria-hidden", String(!isAtlas));
-  elements.capitalStage.setAttribute("aria-hidden", String(!isCapitals));
-  elements.lookalikeStage.setAttribute("aria-hidden", String(!isLookalike));
+  /* A finished daily offers unlimited practice rather than a retry. */
+  elements.newGameButton.textContent = isDaily && state.finished && game.supportsDaily
+    ? "Play unlimited"
+    : game.newGameLabel(ctx);
+  elements.newGameButton.classList.toggle("is-hidden", game.newGameHidden(ctx));
+
+  elements.giveUpButton.textContent = state.finished ? "Answer shown" : game.giveUpLabel(ctx);
+  elements.guessButton.textContent = game.guessButtonLabel(ctx);
+  elements.countryInputLabel.textContent = game.inputLabel;
+  elements.countryInput.setAttribute("aria-autocomplete", game.autocomplete);
+  elements.countryInput.placeholder = game.placeholder(ctx);
+  elements.inputHint.innerHTML = game.inputHint(ctx);
+
+  /* Flag mode is the only one that shows the image and its tile mask. */
+  elements.flagImage.classList.toggle("is-hidden", game.id !== "flag");
+  elements.flagMask.classList.toggle("is-hidden", game.id !== "flag");
+  elements.globlePanel.classList.toggle("is-hidden", game.id !== "globe");
+  elements.globlePanel.setAttribute("aria-hidden", String(game.id !== "globe"));
   elements.atlasShowRemainingButton.classList.toggle("is-hidden", !isAtlasCountryMap);
   elements.atlasRevealSelectedButton.classList.toggle("is-hidden", !isAtlasCountryMap);
 
   const guessFormSlot = document.querySelector("#guess-form-slot");
   if (guessFormSlot) {
-    guessFormSlot.classList.toggle("is-hidden", isLookalike);
+    guessFormSlot.classList.toggle("is-hidden", !game.showsGuessForm);
   }
-  elements.inputHint.classList.toggle("is-hidden", isLookalike);
+  elements.inputHint.classList.toggle("is-hidden", !game.showsGuessForm);
   updateShareButton();
 }
 export function finishRound(message, tone) {
@@ -134,7 +111,7 @@ export function finishRound(message, tone) {
   elements.countryInput.value = "";
   clearSpellingCorrection();
 
-  if (state.gameType !== "globe" && state.gameType !== "capitals" && state.gameType !== "lookalike") {
+  if (currentGame().revealsTilesOnFinish) {
     revealAllTiles();
   }
 
@@ -167,12 +144,15 @@ export function submitGuess(rawValue) {
     return;
   }
 
-  if (state.gameType === "atlas") {
-    submitAtlasGuess(rawValue);
+  const game = currentGame();
+
+  if (game.submitRaw) {
+    game.submitRaw(rawValue);
     return;
   }
 
-  if (state.gameType === "lookalike") {
+  /* Neither hook means the game takes no typed input (Tricky). */
+  if (!game.submitCountry) {
     return;
   }
 
@@ -187,21 +167,11 @@ export function submitGuess(rawValue) {
 
   const alreadyGuessed = state.guesses.some((guess) => guess.code === country.code);
   if (alreadyGuessed) {
-    updateStatus(`${country.name} is already on the board. Try ${state.gameType === "capitals" ? "another capital" : "another country"}.`, "failure");
+    updateStatus(`${country.name} is already on the board. Try ${game.duplicateNoun}.`, "failure");
     return;
   }
 
-  if (state.gameType === "capitals") {
-    submitCapitalGuess(country);
-    return;
-  }
-
-  if (state.gameType === "globe") {
-    submitGlobeGuess(country);
-    return;
-  }
-
-  submitFlagGuess(country);
+  game.submitCountry(country);
 }
 
 export function giveUp() {
@@ -210,57 +180,7 @@ export function giveUp() {
     return;
   }
 
-  if (state.gameType === "atlas") {
-    revealAtlasAnswer();
-    return;
-  }
-
-  if (state.gameType === "lookalike") {
-    state.finished = true;
-    state.lookalikeAnswered = true;
-    if (state.lookalikeAdvanceTimer !== null) {
-      window.clearTimeout(state.lookalikeAdvanceTimer);
-      state.lookalikeAdvanceTimer = null;
-    }
-    stopGameTimer();
-    setRoundInteractivity(false);
-    state.lookalikeScore.streak = 0;
-    state.guesses.push({
-      name: state.target.name,
-      code: state.target.code,
-      correct: false
-    });
-    const allCards = elements.lookalikeFlagsGrid.querySelectorAll(".lookalike-flag-card");
-    allCards.forEach((card) => {
-      const cardImg = card.querySelector("img");
-      if (cardImg) {
-        const cardCode = cardImg.src.split("/").pop().replace(".png", "");
-        if (cardCode === state.target.code) {
-          card.classList.add("correct");
-        }
-      }
-    });
-    updateStatus(`It was ${state.target.name}.`, "failure");
-    updateModeUI();
-    renderGuesses();
-    return;
-  }
-
-  if (state.gameType === "capitals") {
-    state.finishReason = "gave-up";
-    finishRound("You gave up. The capital is revealed on the guess board.", "failure");
-    return;
-  }
-
-  if (state.gameType === "globe") {
-    state.finishReason = "gave-up";
-    rotateGlobeToCountry(state.target.code);
-    finishRound(`You gave up. The country was ${state.target.name}.`, "failure");
-    return;
-  }
-
-  state.finishReason = "gave-up";
-  finishRound("You gave up. The answer is revealed on the guess board.", "failure");
+  currentGame().giveUp();
 }
 
 export function getTargetCountryForSelection() {
@@ -271,10 +191,10 @@ export function getTargetCountryForSelection() {
   }
 
   state.dailyDateKey = null;
-  if (state.gameType === "capitals") {
-    return pickCapitalTarget();
-  }
-  return pickRandomCountry();
+
+  const pick = currentGame().pickTarget;
+
+  return pick ? pick() : pickRandomCountry();
 }
 
 export function startGame() {
@@ -286,20 +206,13 @@ export function startGame() {
   state.finishReason = null;
   startGameTimer();
   clearCountrySuggestions();
-  if (state.gameType === "atlas") {
-    startAtlasSession();
-    return;
-  }
 
-  if (state.gameType === "lookalike") {
-    state.guesses = [];
-    /* Session counters reset, but the all-time best is restored so it
-       survives reloads instead of vanishing with the round. */
-    state.lookalikeScore = { correct: 0, total: 0, streak: 0, bestStreak: getTrickyBest() };
-    state.finished = false;
-    setRoundInteractivity(true);
-    updateModeUI();
-    startLookalikeRound();
+  const game = currentGame();
+
+  /* Games that run their own session (map sets, card sets) take over here;
+     the rest share the target-and-guess-board setup below. */
+  if (game.start) {
+    game.start();
     return;
   }
 
@@ -309,9 +222,7 @@ export function startGame() {
   state.suggestedCorrection = null;
   state.finished = false;
   state.revealedTiles = 0;
-  state.revealOrder = state.gameType === "flag"
-    ? [1, 4, ...shuffle([0, 2, 3, 5])]
-    : shuffle(Array.from({ length: TOTAL_TILES }, (_, index) => index));
+  state.revealOrder = game.revealOrder(shuffle, TOTAL_TILES);
 
   /* Rebuild today's daily from storage so a refresh does not hand back a fresh
      board -- and so a finished daily stays finished. */
@@ -329,19 +240,12 @@ export function startGame() {
     state.elapsedMsAtFinish = Number(saved.elapsedMs) || 0;
   }
 
-  if (state.gameType === "globe") {
-    state.globeRotation = [-20, -18, 0];
-    state.globeZoom = 1;
-    if (state.globeAnimationFrame) {
-      cancelAnimationFrame(state.globeAnimationFrame);
-      state.globeAnimationFrame = null;
-    }
-  }
+  game.onRoundStart?.(state);
 
   updateModeUI();
 
-  if (state.gameType === "capitals") {
-    renderCapitalStage();
+  if (game.renderStage) {
+    game.renderStage();
   } else {
     elements.flagImage.src = getFlagUrl(state.target.code);
     elements.flagImage.alt = "Mystery country flag";
@@ -358,44 +262,24 @@ export function startGame() {
     state.restoringRound = true;
     finishRound(
       won
-        ? `Solved today's ${state.gameType === "capitals" ? "capital" : "country"} in ${state.guesses.length} ${state.guesses.length === 1 ? "guess" : "guesses"}. Come back tomorrow.`
+        ? `Solved today's ${game.answerNoun} in ${state.guesses.length} ${state.guesses.length === 1 ? "guess" : "guesses"}. Come back tomorrow.`
         : `Today's answer was ${state.target.name}. Come back tomorrow.`,
       won ? "success" : "failure"
     );
     state.restoringRound = false;
 
-    if (state.gameType === "globe") {
+    /* Point the restored globe at the answer without animating to it. */
+    if (game.id === "globe") {
       rotateGlobeToCountry(state.target.code, false);
     }
 
     return;
   }
 
-  if (state.gameType === "globe") {
-    updateStatus(
-      state.playMode === "daily"
-        ? "Daily globe mode: a separate UTC-dated country is shared here each day."
-        : "Unlimited globe mode: every new round picks another random country.",
-      "default"
-    );
-  } else if (state.gameType === "capitals") {
-    updateStatus(
-      state.playMode === "daily"
-        ? "Daily capitals mode: a shared country is picked each day. Name its capital."
-        : "Unlimited capitals mode: every new round shows a country. Name its capital.",
-      "default"
-    );
-  } else {
-    updateStatus(
-      state.playMode === "daily"
-        ? "Daily flag mode: a separate UTC-dated flag is shared here each day."
-        : "Unlimited flag mode: every new round picks another random flag.",
-      "default"
-    );
-  }
+  updateStatus(game.introStatus(buildContext()), "default");
 
   clearSpellingCorrection();
-  if (state.gameType !== "capitals") {
+  if (game.usesMask) {
     renderMask();
   }
   renderGuesses();

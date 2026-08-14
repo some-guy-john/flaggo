@@ -51,3 +51,9 @@ export function submitGlobeGuess(country) {
   renderGuesses();
   queueGlobeRender();
 }
+
+export function giveUpGlobe() {
+  state.finishReason = "gave-up";
+  rotateGlobeToCountry(state.target.code);
+  finishRound(`You gave up. The country was ${state.target.name}.`, "failure");
+}

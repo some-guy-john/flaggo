@@ -1,10 +1,12 @@
 import { countries, getFlagUrl, pickRandomCountry } from "../core/catalog.js";
 import { elements, state } from "../core/state.js";
 import { LOOKALIKE_GROUPS } from "../data/lookalikes.js";
-import { renderGuesses } from "../ui/board.js";
+import { renderGuesses, setRoundInteractivity, updateStatus } from "../ui/board.js";
+import { stopGameTimer } from "../core/timer.js";
+import { updateModeUI } from "../round.js";
 import { launchConfetti } from "../ui/confetti.js";
 import { playCorrectSound } from "../ui/settings.js";
-import { saveTrickyBest } from "../core/stats.js";
+import { getTrickyBest, saveTrickyBest } from "../core/stats.js";
 
 export function startLookalikeRound() {
   if (!LOOKALIKE_GROUPS || !LOOKALIKE_GROUPS.length) {
@@ -107,4 +109,49 @@ export function handleLookalikePick(code, cardElement) {
 export function updateLookalikeScore() {
   const { correct, total, streak, bestStreak } = state.lookalikeScore;
   elements.historyCount.textContent = `${correct} / ${total} correct · Streak ${streak} · Best ${bestStreak}`;
+}
+
+export function giveUpLookalike() {
+  state.finished = true;
+  state.lookalikeAnswered = true;
+
+  if (state.lookalikeAdvanceTimer !== null) {
+    window.clearTimeout(state.lookalikeAdvanceTimer);
+    state.lookalikeAdvanceTimer = null;
+  }
+
+  stopGameTimer();
+  setRoundInteractivity(false);
+  state.lookalikeScore.streak = 0;
+  state.guesses.push({
+    name: state.target.name,
+    code: state.target.code,
+    correct: false
+  });
+
+  /* Highlight the card the player should have picked. */
+  elements.lookalikeFlagsGrid.querySelectorAll(".lookalike-flag-card").forEach((card) => {
+    const cardImg = card.querySelector("img");
+
+    if (cardImg && cardImg.src.split("/").pop().replace(".png", "") === state.target.code) {
+      card.classList.add("correct");
+    }
+  });
+
+  updateStatus(`It was ${state.target.name}.`, "failure");
+  updateModeUI();
+  renderGuesses();
+}
+
+/* Full session setup for Tricky: unlike the guess games there is no daily
+   target to resolve, just a fresh scoreboard and the first card set. */
+export function startLookalikeSession() {
+  state.guesses = [];
+  /* Session counters reset, but the all-time best is restored so it survives
+     reloads instead of vanishing with the round. */
+  state.lookalikeScore = { correct: 0, total: 0, streak: 0, bestStreak: getTrickyBest() };
+  state.finished = false;
+  setRoundInteractivity(true);
+  updateModeUI();
+  startLookalikeRound();
 }

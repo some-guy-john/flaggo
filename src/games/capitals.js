@@ -88,3 +88,8 @@ export function submitCapitalGuess(country) {
   saveRoundProgress();
   renderGuesses();
 }
+
+export function giveUpCapitals() {
+  state.finishReason = "gave-up";
+  finishRound("You gave up. The capital is revealed on the guess board.", "failure");
+}
